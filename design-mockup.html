@@ -1,0 +1,715 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Studiora Dev - Terminal UI Mockup</title>
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    body {
+      background: #0a0a0a;
+      color: #e0e0e0;
+      font-family: 'SF Mono', 'Fira Code', 'JetBrains Mono', 'Consolas', monospace;
+      font-size: 13px;
+      line-height: 1.5;
+      padding: 40px;
+    }
+
+    h1 {
+      color: #606060;
+      font-size: 11px;
+      font-weight: 400;
+      text-transform: uppercase;
+      letter-spacing: 2px;
+      margin-bottom: 40px;
+      padding-bottom: 12px;
+      border-bottom: 1px solid #252525;
+    }
+
+    .mockup-section {
+      margin-bottom: 60px;
+    }
+
+    .mockup-label {
+      color: #505050;
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 1.5px;
+      margin-bottom: 16px;
+    }
+
+    .terminal {
+      background: #111111;
+      border: 1px solid #252525;
+      padding: 0;
+      width: 100%;
+      max-width: 900px;
+      position: relative;
+    }
+
+    .terminal-content {
+      padding: 20px 24px;
+      min-height: 400px;
+    }
+
+    /* Color tokens */
+    .text-primary { color: #ffffff; }
+    .text-secondary { color: #808080; }
+    .text-muted { color: #505050; }
+    .text-accent { color: #00bfff; }
+    .text-warning { color: #ffb000; }
+    .text-error { color: #ff4444; }
+    .text-success { color: #00aa00; }
+
+    /* Startup View */
+    .startup-header {
+      color: #ffffff;
+      font-size: 14px;
+      font-weight: 500;
+      letter-spacing: 1px;
+      margin-bottom: 32px;
+    }
+
+    .startup-section-title {
+      color: #606060;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+      margin-bottom: 4px;
+    }
+
+    .startup-rule {
+      color: #303030;
+      margin-bottom: 20px;
+    }
+
+    .checklist-item {
+      display: flex;
+      align-items: baseline;
+      margin-bottom: 8px;
+      gap: 16px;
+    }
+
+    .checklist-tag {
+      font-size: 11px;
+      min-width: 48px;
+    }
+
+    .checklist-tag.done { color: #00aa00; }
+    .checklist-tag.warn { color: #ffb000; }
+    .checklist-tag.fail { color: #ff4444; }
+    .checklist-tag.ask { color: #00bfff; }
+
+    .checklist-label {
+      color: #808080;
+      min-width: 180px;
+    }
+
+    .checklist-value {
+      color: #e0e0e0;
+    }
+
+    .prompt-area {
+      margin-top: 32px;
+      padding-top: 20px;
+      border-top: 1px solid #202020;
+    }
+
+    .prompt-text {
+      color: #808080;
+    }
+
+    .prompt-cursor {
+      display: inline-block;
+      width: 8px;
+      height: 14px;
+      background: #00bfff;
+      margin-left: 4px;
+      animation: blink 1s infinite;
+    }
+
+    @keyframes blink {
+      0%, 50% { opacity: 1; }
+      51%, 100% { opacity: 0; }
+    }
+
+    /* Status Bar */
+    .status-bar {
+      background: #0d0d0d;
+      border-top: 1px solid #252525;
+      padding: 8px 16px;
+      display: flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 12px;
+    }
+
+    .status-segment {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .status-separator {
+      color: #303030;
+      margin: 0 12px;
+    }
+
+    .progress-bar {
+      font-family: inherit;
+      letter-spacing: -1px;
+    }
+
+    .progress-filled { color: #00bfff; }
+    .progress-empty { color: #252525; }
+
+    .git-indicator {
+      display: inline-block;
+      width: 6px;
+      height: 6px;
+      border-radius: 0;
+      margin-right: 6px;
+    }
+
+    .git-indicator.clean { background: #00aa00; }
+    .git-indicator.dirty { background: #ffb000; }
+
+    .hotkey {
+      color: #505050;
+      font-size: 11px;
+    }
+
+    /* Panel Overlay */
+    .panel-overlay {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: #111111;
+      border: 1px solid #303030;
+      min-width: 520px;
+      z-index: 10;
+    }
+
+    .panel-header {
+      display: flex;
+      align-items: center;
+      padding: 0;
+      margin: 0;
+    }
+
+    .panel-title-line {
+      display: flex;
+      width: 100%;
+      color: #303030;
+    }
+
+    .panel-title-left {
+      white-space: nowrap;
+    }
+
+    .panel-title-text {
+      color: #808080;
+      padding: 0 8px;
+      font-size: 11px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .panel-title-right {
+      flex: 1;
+    }
+
+    .panel-content {
+      padding: 20px 24px;
+    }
+
+    .panel-row {
+      display: flex;
+      margin-bottom: 6px;
+    }
+
+    .panel-label {
+      color: #606060;
+      min-width: 80px;
+    }
+
+    .panel-value {
+      color: #e0e0e0;
+    }
+
+    .file-list {
+      margin: 16px 0;
+    }
+
+    .file-item {
+      display: flex;
+      gap: 12px;
+      margin-bottom: 4px;
+    }
+
+    .file-status {
+      min-width: 16px;
+    }
+
+    .file-status.modified { color: #ffb000; }
+    .file-status.added { color: #00aa00; }
+    .file-status.deleted { color: #ff4444; }
+
+    .file-path {
+      color: #808080;
+    }
+
+    .panel-divider {
+      color: #252525;
+      margin: 16px 0;
+    }
+
+    .panel-actions {
+      display: flex;
+      gap: 24px;
+    }
+
+    .panel-action {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .action-key {
+      color: #00bfff;
+      font-weight: 500;
+    }
+
+    .action-label {
+      color: #808080;
+    }
+
+    .panel-footer {
+      padding: 12px 24px;
+      border-top: 1px solid #202020;
+      color: #505050;
+      font-size: 11px;
+    }
+
+    .panel-border-bottom {
+      color: #303030;
+    }
+
+    /* Modal */
+    .modal-overlay {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: #111111;
+      border: 1px solid #ffb000;
+      min-width: 480px;
+      z-index: 20;
+    }
+
+    .modal-header {
+      padding: 16px 24px;
+      border-bottom: 1px solid #252525;
+    }
+
+    .modal-title {
+      color: #ffb000;
+      font-size: 12px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+
+    .modal-body {
+      padding: 20px 24px;
+    }
+
+    .modal-message {
+      color: #e0e0e0;
+      margin-bottom: 20px;
+    }
+
+    .modal-list {
+      margin: 16px 0;
+    }
+
+    .modal-list-item {
+      color: #808080;
+      margin-bottom: 6px;
+      padding-left: 16px;
+    }
+
+    .modal-list-item::before {
+      content: '';
+      display: inline-block;
+      width: 4px;
+      height: 4px;
+      background: #505050;
+      margin-right: 12px;
+      margin-left: -16px;
+      vertical-align: middle;
+    }
+
+    .modal-actions {
+      display: flex;
+      gap: 20px;
+      padding-top: 16px;
+      border-top: 1px solid #202020;
+    }
+
+    /* Session View */
+    .session-output {
+      color: #707070;
+      line-height: 1.6;
+    }
+
+    .session-prompt {
+      color: #00bfff;
+      margin-top: 16px;
+    }
+
+    .session-response {
+      color: #e0e0e0;
+      margin-top: 8px;
+    }
+
+    /* View Selector */
+    .view-tabs {
+      display: flex;
+      gap: 0;
+      margin-bottom: 40px;
+      border-bottom: 1px solid #252525;
+    }
+
+    .view-tab {
+      padding: 12px 24px;
+      color: #505050;
+      cursor: pointer;
+      border-bottom: 2px solid transparent;
+      margin-bottom: -1px;
+      transition: color 0.15s, border-color 0.15s;
+    }
+
+    .view-tab:hover {
+      color: #808080;
+    }
+
+    .view-tab.active {
+      color: #e0e0e0;
+      border-bottom-color: #00bfff;
+    }
+
+    .view-content {
+      display: none;
+    }
+
+    .view-content.active {
+      display: block;
+    }
+
+    /* Context Progress States */
+    .context-healthy .progress-filled { color: #00bfff; }
+    .context-warning .progress-filled { color: #ffb000; }
+    .context-critical .progress-filled { color: #ff4444; }
+  </style>
+</head>
+<body>
+
+  <h1>Studiora Dev Terminal UI</h1>
+
+  <div class="view-tabs">
+    <div class="view-tab active" onclick="showView('startup')">Startup</div>
+    <div class="view-tab" onclick="showView('session')">Session</div>
+    <div class="view-tab" onclick="showView('git-panel')">Git Panel</div>
+    <div class="view-tab" onclick="showView('context-warning')">Context Warning</div>
+  </div>
+
+  <!-- STARTUP VIEW -->
+  <div id="startup" class="view-content active">
+    <div class="mockup-label">Startup Checklist</div>
+    <div class="terminal">
+      <div class="terminal-content">
+        <div class="startup-header">STUDIORA DEV</div>
+
+        <div class="startup-section-title">Preflight</div>
+        <div class="startup-rule">────────────────────────────────────────────────────────────────────</div>
+
+        <div class="checklist-item">
+          <span class="checklist-tag done">[done]</span>
+          <span class="checklist-label">Git status</span>
+          <span class="checklist-value">main, clean</span>
+        </div>
+
+        <div class="checklist-item">
+          <span class="checklist-tag done">[done]</span>
+          <span class="checklist-label">Recent commits</span>
+          <span class="checklist-value">20 loaded</span>
+        </div>
+
+        <div class="checklist-item">
+          <span class="checklist-tag done">[done]</span>
+          <span class="checklist-label">Critical fixes</span>
+          <span class="checklist-value">12 items documented</span>
+        </div>
+
+        <div class="checklist-item">
+          <span class="checklist-tag ask">[ask]</span>
+          <span class="checklist-label">Previous session</span>
+          <span class="checklist-value text-accent">session-2026-01-14-1823.md</span>
+        </div>
+
+        <div class="prompt-area">
+          <span class="prompt-text">Load previous session context? y/n</span>
+          <span class="prompt-cursor"></span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- SESSION VIEW -->
+  <div id="session" class="view-content">
+    <div class="mockup-label">Active Session</div>
+    <div class="terminal">
+      <div class="terminal-content">
+        <div class="session-output">
+          <div style="color: #505050; margin-bottom: 16px;">Session started at 14:23:07</div>
+
+          <div class="session-prompt">claude&gt; What would you like to work on?</div>
+
+          <div style="margin-top: 24px; color: #606060;">user&gt;</div>
+          <div style="color: #e0e0e0; margin-left: 0;">Fix the authentication flow in the login component</div>
+
+          <div class="session-prompt" style="margin-top: 24px;">claude&gt;</div>
+          <div class="session-response">
+            I'll help you fix the authentication flow. Let me first examine the current
+            implementation to understand the issue.
+            <br><br>
+            <span style="color: #505050;">Reading src/components/Login.tsx...</span>
+          </div>
+        </div>
+      </div>
+
+      <div class="status-bar">
+        <div class="status-segment context-healthy">
+          <span class="text-secondary">CONTEXT</span>
+          <span class="text-primary">42%</span>
+          <span class="progress-bar">
+            <span class="progress-filled">██████████</span><span class="progress-empty">░░░░░░░░░░░░░░░</span>
+          </span>
+        </div>
+
+        <span class="status-separator">│</span>
+
+        <div class="status-segment">
+          <span class="text-secondary">GIT</span>
+          <span class="git-indicator dirty"></span>
+          <span class="text-primary">main</span>
+          <span class="text-warning">3 files</span>
+        </div>
+
+        <span class="status-separator">│</span>
+
+        <div class="status-segment">
+          <span class="hotkey">^G</span>
+          <span class="hotkey">^H</span>
+          <span class="hotkey">^Q</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- GIT PANEL VIEW -->
+  <div id="git-panel" class="view-content">
+    <div class="mockup-label">Git Panel Overlay</div>
+    <div class="terminal" style="min-height: 500px;">
+      <div class="terminal-content" style="opacity: 0.3;">
+        <div class="session-output">
+          <div class="session-prompt">claude&gt; Working on the authentication flow...</div>
+        </div>
+      </div>
+
+      <div class="panel-overlay">
+        <div class="panel-header">
+          <div class="panel-title-line">
+            <span class="panel-title-left">┌─</span>
+            <span class="panel-title-text">GIT</span>
+            <span class="panel-title-right">────────────────────────────────────────────────────┐</span>
+          </div>
+        </div>
+
+        <div class="panel-content">
+          <div class="panel-row">
+            <span class="panel-label">Branch</span>
+            <span class="panel-value">main</span>
+          </div>
+          <div class="panel-row">
+            <span class="panel-label">Status</span>
+            <span class="panel-value text-warning">3 files modified</span>
+          </div>
+          <div class="panel-row">
+            <span class="panel-label">Last</span>
+            <span class="panel-value">12 min ago <span class="text-muted">(d7e806d)</span></span>
+          </div>
+
+          <div class="file-list">
+            <div style="color: #606060; margin-bottom: 8px; font-size: 11px; text-transform: uppercase; letter-spacing: 1px;">Modified</div>
+            <div class="file-item">
+              <span class="file-status modified">M</span>
+              <span class="file-path">src/lib/db-sync.ts</span>
+            </div>
+            <div class="file-item">
+              <span class="file-status modified">M</span>
+              <span class="file-path">src/components/ImportProgressBanner.tsx</span>
+            </div>
+            <div class="file-item">
+              <span class="file-status added">A</span>
+              <span class="file-path">CRITICAL_FIXES.md</span>
+            </div>
+          </div>
+
+          <div class="panel-divider">─────────────────────────────────────────────────────────</div>
+
+          <div class="panel-actions">
+            <div class="panel-action">
+              <span class="action-key">s</span>
+              <span class="action-label">Stage all</span>
+            </div>
+            <div class="panel-action">
+              <span class="action-key">c</span>
+              <span class="action-label">Commit</span>
+            </div>
+            <div class="panel-action">
+              <span class="action-key">p</span>
+              <span class="action-label">Push</span>
+            </div>
+            <div class="panel-action">
+              <span class="action-key">a</span>
+              <span class="action-label">Auto-commit: <span class="text-success">ON</span></span>
+            </div>
+          </div>
+        </div>
+
+        <div class="panel-footer">
+          ESC close
+        </div>
+
+        <div class="panel-border-bottom">└──────────────────────────────────────────────────────────────────┘</div>
+      </div>
+
+      <div class="status-bar">
+        <div class="status-segment context-healthy">
+          <span class="text-secondary">CONTEXT</span>
+          <span class="text-primary">42%</span>
+          <span class="progress-bar">
+            <span class="progress-filled">██████████</span><span class="progress-empty">░░░░░░░░░░░░░░░</span>
+          </span>
+        </div>
+
+        <span class="status-separator">│</span>
+
+        <div class="status-segment">
+          <span class="text-secondary">GIT</span>
+          <span class="git-indicator dirty"></span>
+          <span class="text-primary">main</span>
+          <span class="text-warning">3 files</span>
+        </div>
+
+        <span class="status-separator">│</span>
+
+        <div class="status-segment">
+          <span class="hotkey">^G</span>
+          <span class="hotkey">^H</span>
+          <span class="hotkey">^Q</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- CONTEXT WARNING VIEW -->
+  <div id="context-warning" class="view-content">
+    <div class="mockup-label">Context Warning Modal</div>
+    <div class="terminal" style="min-height: 500px;">
+      <div class="terminal-content" style="opacity: 0.3;">
+        <div class="session-output">
+          <div class="session-prompt">claude&gt; Continuing work on the feature...</div>
+        </div>
+      </div>
+
+      <div class="modal-overlay">
+        <div class="modal-header">
+          <div class="modal-title">Context Warning</div>
+        </div>
+
+        <div class="modal-body">
+          <div class="modal-message">Context usage has reached <span class="text-warning">85%</span></div>
+
+          <div style="color: #606060; margin-bottom: 8px; font-size: 11px;">Recommended actions</div>
+          <div class="modal-list">
+            <div class="modal-list-item">Generate session summary</div>
+            <div class="modal-list-item">Commit current changes</div>
+            <div class="modal-list-item">Begin conversation handoff</div>
+          </div>
+
+          <div class="modal-actions">
+            <div class="panel-action">
+              <span class="action-key">g</span>
+              <span class="action-label">Generate summary</span>
+            </div>
+            <div class="panel-action">
+              <span class="action-key">d</span>
+              <span class="action-label">Dismiss</span>
+            </div>
+            <div class="panel-action">
+              <span class="action-key">c</span>
+              <span class="action-label">Continue</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="status-bar">
+        <div class="status-segment context-warning">
+          <span class="text-secondary">CONTEXT</span>
+          <span class="text-warning">85%</span>
+          <span class="progress-bar">
+            <span class="progress-filled" style="color: #ffb000;">█████████████████████</span><span class="progress-empty">░░░░</span>
+          </span>
+        </div>
+
+        <span class="status-separator">│</span>
+
+        <div class="status-segment">
+          <span class="text-secondary">GIT</span>
+          <span class="git-indicator dirty"></span>
+          <span class="text-primary">main</span>
+          <span class="text-warning">5 files</span>
+        </div>
+
+        <span class="status-separator">│</span>
+
+        <div class="status-segment">
+          <span class="hotkey">^G</span>
+          <span class="hotkey">^H</span>
+          <span class="hotkey">^Q</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <script>
+    function showView(viewId) {
+      document.querySelectorAll('.view-content').forEach(el => el.classList.remove('active'));
+      document.querySelectorAll('.view-tab').forEach(el => el.classList.remove('active'));
+
+      document.getElementById(viewId).classList.add('active');
+      event.target.classList.add('active');
+    }
+  </script>
+
+</body>
+</html>
