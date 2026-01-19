@@ -5,7 +5,20 @@
       "Bash(npm install)",
       "Bash(git init:*)",
       "Bash(git remote add:*)",
-      "Bash(git add:*)"
+      "Bash(git add:*)",
+      "Bash(git commit:*)",
+      "Bash(vercel --version)",
+      "Bash(vercel link:*)",
+      "Bash(npm run build:*)",
+      "Bash(claude:*)",
+      "Bash(npm link:*)",
+      "Bash(npm rebuild:*)",
+      "Bash(node -e:*)",
+      "Bash(node --version:*)",
+      "Bash(npm ls:*)",
+      "Bash(npm install:*)",
+      "Bash(vercel env pull:*)",
+      "Bash(vercel env ls:*)"
     ]
   }
 }

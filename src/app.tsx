@@ -1,16 +1,26 @@
-import React, { useState, useEffect } from 'react';
-import { Box, Text } from 'ink';
-import type { StudioraConfig, AppView, ModalType, ContextState, GitStatus } from './types/index.js';
+import React, { useState } from 'react';
+import { Box, Text, useInput, useApp } from 'ink';
+import type { StudioraConfig, AppView, ModalType, ContextState } from './types/index.js';
 import { colors, createHorizontalRule } from './theme.js';
+import { Terminal } from './components/Terminal.js';
+import { useGit } from './hooks/useGit.js';
 
 interface AppProps {
   config: StudioraConfig;
   skipStartup: boolean;
+  directory: string;
 }
 
-export function App({ config, skipStartup }: AppProps) {
+export function App({ config, skipStartup, directory }: AppProps) {
+  const { exit } = useApp();
   const [view, setView] = useState<AppView>(skipStartup ? 'session' : 'startup');
   const [activeModal, setActiveModal] = useState<ModalType>(null);
+
+  // Real git status
+  const { isRepo, status: gitStatus, commits, loading: gitLoading, hookInstalled } = useGit({
+    pollInterval: view === 'session' ? 5000 : 0, // Only poll during session
+    commitCount: config.startup.gitLogCount,
+  });
 
   const [contextState, setContextState] = useState<ContextState>({
     percentage: 0,
@@ -20,32 +30,72 @@ export function App({ config, skipStartup }: AppProps) {
     level: 'healthy',
   });
 
-  const [gitStatus, setGitStatus] = useState<GitStatus>({
-    branch: 'main',
-    isClean: true,
-    modified: [],
-    staged: [],
-    untracked: [],
-    ahead: 0,
-    behind: 0,
-  });
+  // Handle startup view input
+  useInput((input, key) => {
+    if (view === 'startup') {
+      if (input === 'y' || input === 'Y' || key.return) {
+        // Load previous session and start
+        setView('session');
+      } else if (input === 'n' || input === 'N') {
+        // Skip previous session and start fresh
+        setView('session');
+      } else if (key.escape || (key.ctrl && input === 'c')) {
+        exit();
+      }
+    }
+  }, { isActive: view === 'startup' });
+
+  // Handle Claude exit
+  const handleClaudeExit = (code: number) => {
+    exit();
+  };
+
+  // Get project name from directory
+  const projectName = directory.split('/').pop() || directory;
+
+  // Format git status for display
+  const fileCount = gitStatus.modified.length + gitStatus.staged.length + gitStatus.untracked.length;
+  const gitStatusText = isRepo
+    ? `${gitStatus.branch}${gitStatus.isClean ? ', clean' : `, ${fileCount} changed`}`
+    : 'not a git repo';
+  const gitStatusType: 'done' | 'warn' | 'fail' = !isRepo
+    ? 'warn'
+    : gitStatus.isClean
+    ? 'done'
+    : 'warn';
 
   // Startup view
   if (view === 'startup') {
     return (
       <Box flexDirection="column" paddingX={2} paddingY={1}>
-        <Text color={colors.primary} bold>STUDIORA DEV</Text>
+        <Box>
+          <Text color={colors.primary} bold>STUDIORA DEV</Text>
+          <Text color={colors.dim}>  →  </Text>
+          <Text color={colors.accent}>{projectName}</Text>
+        </Box>
         <Text> </Text>
         <Text color={colors.muted}>Preflight</Text>
         <Text color={colors.dim}>{createHorizontalRule(68)}</Text>
         <Text> </Text>
-        <ChecklistRow status="done" label="Git status" value="main, clean" />
-        <ChecklistRow status="done" label="Recent commits" value="20 loaded" />
-        <ChecklistRow status="done" label="Critical fixes" value="12 items documented" />
-        <ChecklistRow status="ask" label="Previous session" value="session-2026-01-14-1823.md" />
+        <ChecklistRow
+          status={gitLoading ? 'pending' : gitStatusType}
+          label="Git status"
+          value={gitLoading ? 'checking...' : gitStatusText}
+        />
+        <ChecklistRow
+          status={gitLoading ? 'pending' : commits.length > 0 ? 'done' : 'warn'}
+          label="Recent commits"
+          value={gitLoading ? 'loading...' : `${commits.length} loaded`}
+        />
+        <ChecklistRow
+          status={!isRepo ? 'warn' : hookInstalled ? 'done' : 'pending'}
+          label="AI signature hook"
+          value={!isRepo ? 'n/a' : hookInstalled ? 'installed' : 'installing...'}
+        />
+        <ChecklistRow status="ask" label="Previous session" value="none found" />
         <Text> </Text>
         <Box borderStyle="single" borderColor={colors.dim} paddingX={1}>
-          <Text color={colors.secondary}>Load previous session context? </Text>
+          <Text color={colors.secondary}>Start Claude session? </Text>
           <Text color={colors.accent}>y</Text>
           <Text color={colors.secondary}>/n</Text>
         </Box>
@@ -56,14 +106,11 @@ export function App({ config, skipStartup }: AppProps) {
   // Session view
   return (
     <Box flexDirection="column" height="100%">
-      <Box flexGrow={1} flexDirection="column" paddingX={2} paddingY={1}>
-        <Text color={colors.muted}>Session started at 14:23:07</Text>
-        <Text> </Text>
-        <Text color={colors.accent}>claude{'>'} </Text>
-        <Text color={colors.primary}>What would you like to work on?</Text>
+      <Box flexGrow={1} flexDirection="column">
+        <Terminal onExit={handleClaudeExit} />
       </Box>
 
-      <StatusBar context={contextState} git={gitStatus} />
+      <StatusBar context={contextState} git={gitStatus} isRepo={isRepo} />
     </Box>
   );
 }
@@ -105,10 +152,17 @@ function ChecklistRow({ status, label, value }: ChecklistRowProps) {
 
 interface StatusBarProps {
   context: ContextState;
-  git: GitStatus;
+  git: {
+    branch: string;
+    isClean: boolean;
+    modified: string[];
+    staged: string[];
+    untracked: string[];
+  };
+  isRepo: boolean;
 }
 
-function StatusBar({ context, git }: StatusBarProps) {
+function StatusBar({ context, git, isRepo }: StatusBarProps) {
   const contextColor =
     context.level === 'healthy' ? colors.accent :
     context.level === 'warning' ? colors.warning :
@@ -139,10 +193,16 @@ function StatusBar({ context, git }: StatusBarProps) {
       <Text color={colors.dim}>  │  </Text>
 
       <Text color={colors.secondary}>GIT </Text>
-      <Text color={git.isClean ? colors.success : colors.warning}>● </Text>
-      <Text color={colors.primary}>{git.branch}</Text>
-      {!git.isClean && (
-        <Text color={colors.warning}> {fileCount} files</Text>
+      {isRepo ? (
+        <>
+          <Text color={git.isClean ? colors.success : colors.warning}>● </Text>
+          <Text color={colors.primary}>{git.branch}</Text>
+          {!git.isClean && (
+            <Text color={colors.warning}> {fileCount} files</Text>
+          )}
+        </>
+      ) : (
+        <Text color={colors.muted}>no repo</Text>
       )}
 
       <Text color={colors.dim}>  │  </Text>

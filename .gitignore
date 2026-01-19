@@ -18,6 +18,7 @@ Thumbs.db
 .env
 .env.local
 .env.*.local
+!.env.example
 
 # Logs
 *.log
@@ -25,3 +26,4 @@ npm-debug.log*
 
 # Vercel
 .vercel
+.env*.local
