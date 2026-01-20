@@ -6,7 +6,6 @@ import {
   setupProject,
   runVercelLink,
   isVercelInstalled,
-  getGitHubUsernameFromGit,
 } from '../modules/setup/project.js';
 
 type SetupStep = 'project-name' | 'github-user' | 'create-dir' | 'running' | 'vercel' | 'complete';
@@ -29,12 +28,8 @@ export function SetupWizard({ baseDirectory, onComplete, onCancel }: SetupWizard
   const [projectPath, setProjectPath] = useState('');
   const [hasVercel, setHasVercel] = useState(false);
 
-  // Try to get GitHub username from existing git config
+  // Check if Vercel is installed
   useEffect(() => {
-    const existingUser = getGitHubUsernameFromGit();
-    if (existingUser) {
-      setGithubUser(existingUser);
-    }
     setHasVercel(isVercelInstalled());
   }, []);
 

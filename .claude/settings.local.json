@@ -19,7 +19,8 @@
       "Bash(npm install:*)",
       "Bash(vercel env pull:*)",
       "Bash(vercel env ls:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(git fetch:*)"
     ]
   }
 }
