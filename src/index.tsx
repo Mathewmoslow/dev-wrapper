@@ -32,15 +32,10 @@ function loadEnvFile() {
   }
 }
 
-// Load API keys from shell profile files
+// Load API keys from shell profile files (cross-platform)
 function loadShellEnv() {
-  const home = process.env.HOME || '';
-  const profiles = [
-    path.join(home, '.bashrc'),
-    path.join(home, '.bash_profile'),
-    path.join(home, '.zshrc'),
-    path.join(home, '.zprofile'),
-  ];
+  const home = process.env.HOME || process.env.USERPROFILE || '';
+  const isWindows = process.platform === 'win32';
 
   const keyPatterns = [
     'ANTHROPIC_API_KEY',
@@ -51,13 +46,32 @@ function loadShellEnv() {
     'GOOGLE_API_KEY',
   ];
 
+  // Unix profiles
+  const unixProfiles = [
+    path.join(home, '.bashrc'),
+    path.join(home, '.bash_profile'),
+    path.join(home, '.zshrc'),
+    path.join(home, '.zprofile'),
+  ];
+
+  // Windows PowerShell profiles
+  const windowsProfiles = [
+    path.join(home, 'Documents', 'PowerShell', 'Microsoft.PowerShell_profile.ps1'),
+    path.join(home, 'Documents', 'WindowsPowerShell', 'Microsoft.PowerShell_profile.ps1'),
+    path.join(home, '.config', 'powershell', 'Microsoft.PowerShell_profile.ps1'),
+  ];
+
+  const profiles = isWindows ? [...windowsProfiles, ...unixProfiles] : unixProfiles;
+
   for (const profile of profiles) {
     if (fs.existsSync(profile)) {
       const content = fs.readFileSync(profile, 'utf-8');
       for (const line of content.split('\n')) {
         const trimmed = line.trim();
+
+        // Unix: export KEY=value
         if (trimmed.startsWith('export ')) {
-          const exportLine = trimmed.slice(7); // Remove 'export '
+          const exportLine = trimmed.slice(7);
           const eqIndex = exportLine.indexOf('=');
           if (eqIndex > 0) {
             const key = exportLine.slice(0, eqIndex);
@@ -65,6 +79,15 @@ function loadShellEnv() {
             if (keyPatterns.includes(key) && value && !process.env[key]) {
               process.env[key] = value;
             }
+          }
+        }
+
+        // PowerShell: $env:KEY = "value"
+        const psMatch = trimmed.match(/^\$env:([A-Z_]+)\s*=\s*["']?([^"']+)["']?/i);
+        if (psMatch) {
+          const [, key, value] = psMatch;
+          if (keyPatterns.includes(key) && value && !process.env[key]) {
+            process.env[key] = value;
           }
         }
       }

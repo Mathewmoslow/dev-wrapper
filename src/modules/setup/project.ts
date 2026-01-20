@@ -81,20 +81,30 @@ export async function setupProject(options: ProjectSetupOptions): Promise<SetupR
   };
 }
 
+// Cross-platform command existence check
+function commandExists(cmd: string): boolean {
+  try {
+    const checkCmd = process.platform === 'win32' ? `where ${cmd}` : `which ${cmd}`;
+    execSync(checkCmd, { stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
 // Run vercel link interactively - returns a promise that resolves when complete
 export function runVercelLink(projectPath: string): Promise<boolean> {
   return new Promise((resolve) => {
-    // Check if vercel is installed
-    try {
-      execSync('which vercel', { stdio: 'ignore' });
-    } catch {
+    if (!commandExists('vercel')) {
       resolve(false);
       return;
     }
 
-    const vercel = spawn('vercel', ['link'], {
+    const isWindows = process.platform === 'win32';
+    const vercel = spawn(isWindows ? 'vercel.cmd' : 'vercel', ['link'], {
       cwd: projectPath,
-      stdio: 'inherit', // Allow interactive prompts
+      stdio: 'inherit',
+      shell: isWindows, // Use shell on Windows for .cmd files
     });
 
     vercel.on('close', (code) => {
@@ -116,12 +126,7 @@ export function isEmptyDirectory(dir: string): boolean {
 }
 
 export function isVercelInstalled(): boolean {
-  try {
-    execSync('which vercel', { stdio: 'ignore' });
-    return true;
-  } catch {
-    return false;
-  }
+  return commandExists('vercel');
 }
 
 export function getGitHubUsernameFromGit(): string | null {

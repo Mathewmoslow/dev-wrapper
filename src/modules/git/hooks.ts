@@ -2,23 +2,72 @@ import fs from 'fs';
 import path from 'path';
 import { simpleGit } from 'simple-git';
 
-const COMMIT_MSG_HOOK = `#!/bin/bash
+// Cross-platform hook using Node.js
+const COMMIT_MSG_HOOK_NODE = `#!/usr/bin/env node
+// studiora-dev: Removes AI co-author signatures from commit messages
+
+const fs = require('fs');
+const msgFile = process.argv[2];
+
+if (!msgFile) process.exit(0);
+
+let msg = fs.readFileSync(msgFile, 'utf-8');
+
+// Patterns to remove
+const patterns = [
+  /^[\\s]*[Cc]o-[Aa]uthored-[Bb]y:.*([Cc]laude|[Cc]hat[Gg][Pp][Tt]|[Gg][Pp][Tt]|[Cc]opilot|[Aa]nthropic|[Oo]pen[Aa][Ii]|[Gg]emini|[Bb]ard|noreply@anthropic|noreply@openai).*\\n?/gm,
+  /[Gg]enerated (by|with|using).*(Claude|ChatGPT|GPT|Copilot|AI|Gemini).*\\n?/gim,
+  /🤖.*(Claude|AI|Generated).*\\n?/gm,
+  /\\[.*AI.*[Gg]enerated.*\\].*\\n?/gm,
+];
+
+for (const p of patterns) {
+  msg = msg.replace(p, '');
+}
+
+// Clean up extra blank lines
+msg = msg.replace(/\\n{3,}/g, '\\n\\n').trim() + '\\n';
+
+fs.writeFileSync(msgFile, msg);
+`;
+
+// Bash fallback for systems where node might not be in PATH for git hooks
+const COMMIT_MSG_HOOK_BASH = `#!/bin/bash
 # studiora-dev: Removes AI co-author signatures from commit messages
 
 COMMIT_MSG_FILE=$1
 
-# Patterns to remove (case insensitive)
-sed -i.bak -E \\
-  -e '/^[[:space:]]*[Cc]o-[Aa]uthored-[Bb]y:.*([Cc]laude|[Cc]hat[Gg][Pp][Tt]|[Gg][Pp][Tt]|[Cc]opilot|[Aa]nthropic|[Oo]pen[Aa][Ii]|[Gg]emini|[Bb]ard|noreply@anthropic|noreply@openai)/d' \\
-  -e '/[Gg]enerated (by|with|using).*(Claude|ChatGPT|GPT|Copilot|AI|Gemini)/Id' \\
-  -e '/🤖.*(Claude|AI|Generated)/d' \\
-  -e '/\\[.*AI.*[Gg]enerated.*\\]/d' \\
-  -e '/^[[:space:]]*$/N;/^\\n$/d' \\
-  "$COMMIT_MSG_FILE"
-
-rm -f "\${COMMIT_MSG_FILE}.bak"
+# Try node first, fall back to sed
+if command -v node &> /dev/null; then
+  node -e "
+const fs = require('fs');
+const msgFile = process.argv[1];
+if (!msgFile) process.exit(0);
+let msg = fs.readFileSync(msgFile, 'utf-8');
+const patterns = [
+  /^[\\\\s]*[Cc]o-[Aa]uthored-[Bb]y:.*([Cc]laude|[Cc]hat[Gg][Pp][Tt]|[Gg][Pp][Tt]|[Cc]opilot|[Aa]nthropic|[Oo]pen[Aa][Ii]|[Gg]emini|[Bb]ard|noreply@anthropic|noreply@openai).*\\\\n?/gm,
+  /[Gg]enerated (by|with|using).*(Claude|ChatGPT|GPT|Copilot|AI|Gemini).*\\\\n?/gim,
+  /🤖.*(Claude|AI|Generated).*\\\\n?/gm,
+  /\\\\[.*AI.*[Gg]enerated.*\\\\].*\\\\n?/gm,
+];
+for (const p of patterns) msg = msg.replace(p, '');
+msg = msg.replace(/\\\\n{3,}/g, '\\\\n\\\\n').trim() + '\\\\n';
+fs.writeFileSync(msgFile, msg);
+" "$COMMIT_MSG_FILE"
+else
+  # Fallback to sed (works on Mac/Linux and Git Bash on Windows)
+  sed -i.bak -E \\
+    -e '/^[[:space:]]*[Cc]o-[Aa]uthored-[Bb]y:.*([Cc]laude|[Cc]hat[Gg][Pp][Tt]|[Gg][Pp][Tt]|[Cc]opilot|[Aa]nthropic|[Oo]pen[Aa][Ii]|[Gg]emini|[Bb]ard|noreply@anthropic|noreply@openai)/d' \\
+    -e '/[Gg]enerated (by|with|using).*(Claude|ChatGPT|GPT|Copilot|AI|Gemini)/Id' \\
+    "$COMMIT_MSG_FILE"
+  rm -f "\${COMMIT_MSG_FILE}.bak"
+fi
 exit 0
 `;
+
+// Use Node hook on Windows, bash hook elsewhere (bash hook has node fallback too)
+const isWindows = process.platform === 'win32';
+const COMMIT_MSG_HOOK = isWindows ? COMMIT_MSG_HOOK_NODE : COMMIT_MSG_HOOK_BASH;
 
 export async function installCommitMsgHook(cwd?: string): Promise<boolean> {
   const repoRoot = cwd || process.cwd();

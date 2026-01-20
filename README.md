@@ -24,6 +24,8 @@ npm link
 
 ## Configuration
 
+### macOS / Linux
+
 Set API keys in your shell profile (`~/.bashrc`, `~/.zshrc`):
 
 ```bash
@@ -32,7 +34,21 @@ export OPENAI_API_KEY="sk-..."
 export GEMINI_API_KEY="..."
 ```
 
-Or create `.env.local` in your project:
+### Windows (PowerShell)
+
+Add to your PowerShell profile (`$PROFILE`):
+
+```powershell
+$env:ANTHROPIC_API_KEY = "sk-ant-..."
+$env:OPENAI_API_KEY = "sk-..."
+$env:GEMINI_API_KEY = "..."
+```
+
+To find your profile path, run: `echo $PROFILE`
+
+### Alternative: .env.local
+
+Create `.env.local` in your project directory:
 
 ```
 ANTHROPIC_API_KEY=sk-ant-...
