@@ -245,21 +245,40 @@ coverage/
     console.log('\x1b[90mYou can create it manually at https://github.com/new\x1b[0m');
   }
 
-  // Step 10: Vercel link (now GitHub repo exists, so connection will work)
+  // Step 10: Vercel link (use --yes to skip GitHub connection prompt)
   if (hasVercel) {
     const doVercel = await confirm('\nLink to Vercel?', true);
     if (doVercel) {
-      console.log('\n\x1b[90m→ Running vercel link...\x1b[0m');
-      console.log('\x1b[90m  (Say YES to "Connect to GitHub" - the repo now exists!)\x1b[0m\n');
-      await new Promise<void>((resolve) => {
-        const vercel = spawn(isWindows ? 'vercel.cmd' : 'vercel', ['link'], {
+      console.log('\n\x1b[90m→ Creating Vercel project...\x1b[0m');
+
+      // Use --yes to auto-confirm and skip GitHub connection (which often fails with private repos)
+      try {
+        execSync(`${isWindows ? 'vercel.cmd' : 'vercel'} link --yes`, {
           cwd: projectPath,
           stdio: 'inherit',
-          shell: true,
         });
-        vercel.on('close', () => resolve());
-        vercel.on('error', () => resolve());
-      });
+        console.log('\x1b[32m✓ Vercel project created\x1b[0m');
+
+        // Try to connect GitHub automatically
+        console.log('\x1b[90m→ Connecting GitHub to Vercel...\x1b[0m');
+        try {
+          const repoUrl = `https://github.com/${githubUser}/${projectName}`;
+          execSync(`${isWindows ? 'vercel.cmd' : 'vercel'} git connect ${repoUrl} --yes`, {
+            cwd: projectPath,
+            stdio: 'inherit',
+          });
+          console.log('\x1b[32m✓ GitHub connected to Vercel\x1b[0m');
+        } catch {
+          console.log('\x1b[33m⚠ Could not auto-connect GitHub to Vercel\x1b[0m');
+          console.log('\x1b[90m  To enable auto-deployments:\x1b[0m');
+          console.log('\x1b[90m  1. Go to: https://github.com/settings/installations\x1b[0m');
+          console.log('\x1b[90m  2. Click Vercel > Configure\x1b[0m');
+          console.log('\x1b[90m  3. Add this repository to Vercel\'s access\x1b[0m');
+          console.log('\x1b[90m  4. Then connect in Vercel dashboard\x1b[0m');
+        }
+      } catch {
+        console.log('\x1b[31m✗ Vercel link failed\x1b[0m');
+      }
     }
   }
 
