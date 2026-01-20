@@ -280,8 +280,17 @@ function CreateDirInput({
 }
 
 function VercelPrompt({ onYes, onNo }: { onYes: () => void; onNo: () => void }) {
-  useInput((input, key) => {
-    if (input === 'y' || input === 'Y' || key.return) {
+  const [ready, setReady] = useState(false);
+
+  // Delay to prevent Enter key from previous step bleeding through
+  useEffect(() => {
+    const timer = setTimeout(() => setReady(true), 100);
+    return () => clearTimeout(timer);
+  }, []);
+
+  useInput((input) => {
+    if (!ready) return;
+    if (input === 'y' || input === 'Y') {
       onYes();
     } else if (input === 'n' || input === 'N') {
       onNo();
@@ -291,7 +300,16 @@ function VercelPrompt({ onYes, onNo }: { onYes: () => void; onNo: () => void }) 
 }
 
 function CompletePrompt({ onContinue }: { onContinue: () => void }) {
+  const [ready, setReady] = useState(false);
+
+  // Delay to prevent Enter key from previous step bleeding through
+  useEffect(() => {
+    const timer = setTimeout(() => setReady(true), 100);
+    return () => clearTimeout(timer);
+  }, []);
+
   useInput((input, key) => {
+    if (!ready) return;
     if (key.return) {
       onContinue();
     }
