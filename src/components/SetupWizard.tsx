@@ -79,15 +79,17 @@ export function SetupWizard({ baseDirectory, onComplete, onCancel }: SetupWizard
     }
   };
 
-  const runVercel = async () => {
-    setStatus((s) => [...s, '→ Running vercel link...']);
-
+  const runVercel = () => {
     // Clear the screen for vercel's interactive prompts
     process.stdout.write('\x1b[2J\x1b[H');
     console.log('\n📦 Vercel Project Setup\n');
     console.log('Follow the prompts below to link your project to Vercel.\n');
 
-    const success = await runVercelLink(projectPath);
+    // This is synchronous and blocks until vercel link completes
+    const success = runVercelLink(projectPath);
+
+    // Clear screen and show result
+    process.stdout.write('\x1b[2J\x1b[H');
 
     if (success) {
       setStatus((s) => [...s, '✓ Vercel project linked']);

@@ -1,4 +1,4 @@
-import { execSync, spawn } from 'child_process';
+import { execSync, spawnSync } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 import { simpleGit } from 'simple-git';
@@ -92,29 +92,24 @@ function commandExists(cmd: string): boolean {
   }
 }
 
-// Run vercel link interactively - returns a promise that resolves when complete
-export function runVercelLink(projectPath: string): Promise<boolean> {
-  return new Promise((resolve) => {
-    if (!commandExists('vercel')) {
-      resolve(false);
-      return;
-    }
+// Run vercel link interactively - synchronous to properly capture stdin
+export function runVercelLink(projectPath: string): boolean {
+  if (!commandExists('vercel')) {
+    return false;
+  }
 
+  try {
     const isWindows = process.platform === 'win32';
-    const vercel = spawn(isWindows ? 'vercel.cmd' : 'vercel', ['link'], {
+    const result = spawnSync(isWindows ? 'vercel.cmd' : 'vercel', ['link'], {
       cwd: projectPath,
       stdio: 'inherit',
-      shell: isWindows, // Use shell on Windows for .cmd files
+      shell: true,
     });
 
-    vercel.on('close', (code) => {
-      resolve(code === 0);
-    });
-
-    vercel.on('error', () => {
-      resolve(false);
-    });
-  });
+    return result.status === 0;
+  } catch {
+    return false;
+  }
 }
 
 export function isEmptyDirectory(dir: string): boolean {
