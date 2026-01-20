@@ -4,7 +4,7 @@ import { render, Box, Text, useInput } from 'ink';
 import path from 'path';
 import fs from 'fs';
 import readline from 'readline';
-import { spawn } from 'child_process';
+import { spawn, execSync } from 'child_process';
 import { Chat } from './components/Chat.js';
 import { parseCliArgs } from './cli.js';
 import { loadConfig } from './core/config.js';
@@ -117,57 +117,143 @@ async function confirm(question: string, defaultYes = true): Promise<boolean> {
   return answer.toLowerCase() === 'y';
 }
 
-// Run interactive setup BEFORE Ink
+// Check if gh CLI is installed and authenticated
+function isGhInstalled(): boolean {
+  try {
+    execSync('gh auth status', { stdio: 'ignore' });
+    return true;
+  } catch {
+    return false;
+  }
+}
+
+// Get GitHub username from gh CLI
+function getGhUsername(): string | null {
+  try {
+    const result = execSync('gh api user --jq .login', { encoding: 'utf-8' }).trim();
+    return result || null;
+  } catch {
+    return null;
+  }
+}
+
+// Run interactive setup BEFORE Ink - FULLY AUTOMATED
 async function runSetupWizard(baseDir: string): Promise<string | null> {
-  console.log('\n\x1b[34m📦 NEW PROJECT SETUP\x1b[0m');
+  const isWindows = process.platform === 'win32';
+
+  console.log('\n\x1b[34m📦 NEW PROJECT SETUP (Automated)\x1b[0m');
   console.log('\x1b[90m─────────────────────────────────────\x1b[0m\n');
 
+  // Step 1: Check prerequisites
+  const hasGh = isGhInstalled();
+  const hasVercel = isVercelInstalled();
+
+  console.log('\x1b[90mChecking tools...\x1b[0m');
+  console.log(`  GitHub CLI (gh): ${hasGh ? '\x1b[32m✓ authenticated\x1b[0m' : '\x1b[31m✗ not found or not authenticated\x1b[0m'}`);
+  console.log(`  Vercel CLI:      ${hasVercel ? '\x1b[32m✓ installed\x1b[0m' : '\x1b[33m⚠ not found (optional)\x1b[0m'}`);
+
+  if (!hasGh) {
+    console.log('\n\x1b[31mError: GitHub CLI required for automated setup.\x1b[0m');
+    console.log('\x1b[90mInstall: https://cli.github.com then run: gh auth login\x1b[0m\n');
+    return null;
+  }
+
+  // Step 2: Get GitHub username automatically
+  const githubUser = getGhUsername();
+  if (!githubUser) {
+    console.log('\n\x1b[31mError: Could not get GitHub username. Run: gh auth login\x1b[0m');
+    return null;
+  }
+  console.log(`  GitHub user:     \x1b[32m${githubUser}\x1b[0m\n`);
+
+  // Step 3: Get project name
   const projectName = await prompt('Project name: ');
   if (!projectName) {
     console.log('\x1b[31mError: Project name is required\x1b[0m');
     return null;
   }
 
-  const githubUser = await prompt('GitHub username: ');
-  if (!githubUser) {
-    console.log('\x1b[31mError: GitHub username is required\x1b[0m');
+  const createDir = await confirm(`Create new directory './${projectName}'?`, true);
+  const makePrivate = await confirm('Make repository private?', true);
+
+  console.log('\n\x1b[90m─────────────────────────────────────\x1b[0m');
+  console.log('\x1b[34mRunning automated setup...\x1b[0m\n');
+
+  // Step 4: Create directory
+  let projectPath = baseDir;
+  if (createDir) {
+    projectPath = path.join(baseDir, projectName);
+    if (!fs.existsSync(projectPath)) {
+      fs.mkdirSync(projectPath, { recursive: true });
+    }
+  }
+  console.log(`\x1b[32m✓ Directory: ${projectPath}\x1b[0m`);
+
+  // Step 5: Git init
+  try {
+    execSync('git init', { cwd: projectPath, stdio: 'ignore' });
+    console.log('\x1b[32m✓ Git initialized\x1b[0m');
+  } catch (err) {
+    console.log(`\x1b[31m✗ Git init failed: ${err}\x1b[0m`);
     return null;
   }
 
-  const createDir = await confirm(`Create new directory './${projectName}'?`, true);
-
-  console.log('\n\x1b[90m→ Setting up project...\x1b[0m');
-
-  // Run setup
-  const result = await setupProject({
-    projectName,
-    githubUsername: githubUser,
-    createDirectory: createDir,
-    baseDirectory: baseDir,
-  });
-
-  if (result.gitInitialized) {
-    console.log('\x1b[32m✓ Git initialized\x1b[0m');
-  }
-  if (result.remoteAdded) {
-    console.log(`\x1b[32m✓ GitHub remote: github.com/${githubUser}/${projectName}\x1b[0m`);
-  }
-
-  if (result.errors.length > 0) {
-    for (const err of result.errors) {
-      console.log(`\x1b[31m✗ ${err}\x1b[0m`);
-    }
+  // Step 6: Create .gitignore
+  const gitignorePath = path.join(projectPath, '.gitignore');
+  if (!fs.existsSync(gitignorePath)) {
+    fs.writeFileSync(gitignorePath, `node_modules/
+dist/
+build/
+.next/
+.env
+.env.local
+.env.*.local
+.DS_Store
+.vercel
+coverage/
+*.log
+`);
+    console.log('\x1b[32m✓ Created .gitignore\x1b[0m');
   }
 
-  // Vercel link (interactive, runs in its own process)
-  if (isVercelInstalled()) {
+  // Step 7: Create README
+  const readmePath = path.join(projectPath, 'README.md');
+  if (!fs.existsSync(readmePath)) {
+    fs.writeFileSync(readmePath, `# ${projectName}\n\nCreated with studiora-dev\n`);
+    console.log('\x1b[32m✓ Created README.md\x1b[0m');
+  }
+
+  // Step 8: Initial commit (REQUIRED before gh repo create)
+  try {
+    execSync('git add -A', { cwd: projectPath, stdio: 'ignore' });
+    execSync('git commit -m "Initial commit"', { cwd: projectPath, stdio: 'ignore' });
+    console.log('\x1b[32m✓ Initial commit created\x1b[0m');
+  } catch (err) {
+    console.log(`\x1b[31m✗ Commit failed: ${err}\x1b[0m`);
+    return null;
+  }
+
+  // Step 9: Create GitHub repo and push (gh repo create does it all)
+  try {
+    const visibility = makePrivate ? '--private' : '--public';
+    const cmd = `gh repo create ${projectName} ${visibility} --source=. --push`;
+    console.log('\x1b[90m→ Creating GitHub repository...\x1b[0m');
+    execSync(cmd, { cwd: projectPath, stdio: 'inherit' });
+    console.log(`\x1b[32m✓ GitHub repo created: github.com/${githubUser}/${projectName}\x1b[0m`);
+  } catch (err) {
+    console.log(`\x1b[31m✗ GitHub repo creation failed: ${err}\x1b[0m`);
+    console.log('\x1b[90mYou can create it manually at https://github.com/new\x1b[0m');
+  }
+
+  // Step 10: Vercel link (now GitHub repo exists, so connection will work)
+  if (hasVercel) {
     const doVercel = await confirm('\nLink to Vercel?', true);
     if (doVercel) {
-      console.log('\n\x1b[90m→ Running vercel link...\x1b[0m\n');
-      const isWindows = process.platform === 'win32';
+      console.log('\n\x1b[90m→ Running vercel link...\x1b[0m');
+      console.log('\x1b[90m  (Say YES to "Connect to GitHub" - the repo now exists!)\x1b[0m\n');
       await new Promise<void>((resolve) => {
         const vercel = spawn(isWindows ? 'vercel.cmd' : 'vercel', ['link'], {
-          cwd: result.projectPath,
+          cwd: projectPath,
           stdio: 'inherit',
           shell: true,
         });
@@ -177,10 +263,16 @@ async function runSetupWizard(baseDir: string): Promise<string | null> {
     }
   }
 
-  console.log('\n\x1b[32m✅ Setup complete!\x1b[0m');
-  console.log('\x1b[90mNext: Create repo at https://github.com/new\x1b[0m\n');
+  console.log('\n\x1b[32m✅ SETUP COMPLETE!\x1b[0m');
+  console.log('\x1b[90m─────────────────────────────────────\x1b[0m');
+  console.log(`\x1b[32m✓\x1b[0m Local project: ${projectPath}`);
+  console.log(`\x1b[32m✓\x1b[0m GitHub repo:   https://github.com/${githubUser}/${projectName}`);
+  if (hasVercel) {
+    console.log(`\x1b[32m✓\x1b[0m Vercel:        Check dashboard for deployment`);
+  }
+  console.log('');
 
-  return result.projectPath;
+  return projectPath;
 }
 
 // Main App component
