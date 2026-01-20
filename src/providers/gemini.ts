@@ -7,7 +7,7 @@ import type {
   ToolDefinition,
 } from './types.js';
 
-const DEFAULT_MODEL = 'gemini-1.5-pro';
+const DEFAULT_MODEL = 'gemini-2.0-flash';
 
 interface GeminiResponse {
   candidates?: Array<{
