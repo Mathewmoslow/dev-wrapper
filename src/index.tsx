@@ -164,10 +164,12 @@ async function runSetupWizard(baseDir: string): Promise<string | null> {
     const doVercel = await confirm('\nLink to Vercel?', true);
     if (doVercel) {
       console.log('\n\x1b[90m→ Running vercel link...\x1b[0m\n');
+      const isWindows = process.platform === 'win32';
       await new Promise<void>((resolve) => {
-        const vercel = spawn('vercel', ['link'], {
+        const vercel = spawn(isWindows ? 'vercel.cmd' : 'vercel', ['link'], {
           cwd: result.projectPath,
           stdio: 'inherit',
+          shell: true,
         });
         vercel.on('close', () => resolve());
         vercel.on('error', () => resolve());
