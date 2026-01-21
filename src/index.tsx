@@ -317,6 +317,12 @@ interface AppState {
   isRepo: boolean;
 }
 
+interface ProviderHealth {
+  name: string;
+  status: 'green' | 'yellow' | 'red' | 'checking';
+  message: string;
+}
+
 function App({ directory, skipStartup }: { directory: string; skipStartup: boolean }) {
   // Get configured providers synchronously
   const configuredProviders = getConfiguredProviders();
@@ -334,10 +340,16 @@ function App({ directory, skipStartup }: { directory: string; skipStartup: boole
   const [loading, setLoading] = useState(true);
   const [selectedIndex, setSelectedIndex] = useState<number>(-1); // -1 = none selected
   const [gitInfo, setGitInfo] = useState({ isRepo: false, branch: '', hookInstalled: false });
+  const [providerHealth, setProviderHealth] = useState<ProviderHealth[]>([
+    { name: 'anthropic', status: 'checking', message: 'Checking...' },
+    { name: 'openai', status: 'checking', message: 'Checking...' },
+    { name: 'gemini', status: 'checking', message: 'Checking...' },
+  ]);
 
-  // Load git state on mount
+  // Load git state and check provider health on mount
   React.useEffect(() => {
     async function init() {
+      // Check git
       const repo = await isGitRepo();
       if (repo) {
         const status = await getGitStatus();
@@ -350,6 +362,21 @@ function App({ directory, skipStartup }: { directory: string; skipStartup: boole
         setGitInfo({ isRepo: true, branch: status.branch, hookInstalled });
         setState((s) => ({ ...s, isRepo: true, gitBranch: status.branch, gitClean: status.isClean }));
       }
+
+      // Check provider health (in parallel)
+      const healthChecks = ['anthropic', 'openai', 'gemini'].map(async (name) => {
+        try {
+          const { createProvider } = await import('./providers/index.js');
+          const provider = createProvider(name as ProviderName);
+          const health = await provider.checkHealth();
+          return { name, status: health.status, message: health.message };
+        } catch {
+          return { name, status: 'red' as const, message: 'Error' };
+        }
+      });
+
+      const results = await Promise.all(healthChecks);
+      setProviderHealth(results);
       setLoading(false);
     }
     init();
@@ -435,19 +462,30 @@ function App({ directory, skipStartup }: { directory: string; skipStartup: boole
             <Text color={colors.accent} bold>Choose AI Provider:</Text>
             <Text color={colors.muted}>(↑/↓ or 1-3 to select, Enter to confirm)</Text>
             <Text> </Text>
-            {providers.map((p, i) => (
-              <Box key={p}>
-                <Text color={i === selectedIndex ? colors.accent : colors.dim}>
-                  {i === selectedIndex ? '▸ ' : '  '}
-                </Text>
-                <Text color={i === selectedIndex ? colors.accent : colors.secondary}>
-                  [{i + 1}] {p}
-                </Text>
-                {i === selectedIndex && (
-                  <Text color={colors.success}> ✓</Text>
-                )}
-              </Box>
-            ))}
+            {providers.map((p, i) => {
+              const health = providerHealth.find(h => h.name === p);
+              const statusIcon = health?.status === 'green' ? '🟢' :
+                                 health?.status === 'yellow' ? '🟡' :
+                                 health?.status === 'red' ? '🔴' : '⚪';
+              const statusColor = health?.status === 'green' ? colors.success :
+                                  health?.status === 'yellow' ? colors.warning :
+                                  health?.status === 'red' ? colors.error : colors.dim;
+              return (
+                <Box key={p}>
+                  <Text color={i === selectedIndex ? colors.accent : colors.dim}>
+                    {i === selectedIndex ? '▸ ' : '  '}
+                  </Text>
+                  <Text>{statusIcon} </Text>
+                  <Text color={i === selectedIndex ? colors.accent : colors.secondary}>
+                    [{i + 1}] {p}
+                  </Text>
+                  <Text color={statusColor}> {health?.message || ''}</Text>
+                  {i === selectedIndex && (
+                    <Text color={colors.success}> ✓</Text>
+                  )}
+                </Box>
+              );
+            })}
           </Box>
         )}
 

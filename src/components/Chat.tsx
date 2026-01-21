@@ -2,9 +2,9 @@ import React, { useState, useEffect, useCallback } from 'react';
 import { Box, Text, useInput, useApp, useStdin } from 'ink';
 import TextInput from 'ink-text-input';
 import { Conversation } from '../core/conversation.js';
-import type { ProviderName } from '../providers/types.js';
+import type { ProviderName, HealthCheckResult } from '../providers/types.js';
 import { colors } from '../theme.js';
-import { getConfiguredProviders } from '../providers/index.js';
+import { getConfiguredProviders, createProvider } from '../providers/index.js';
 
 interface ChatProps {
   initialProvider: ProviderName;
@@ -92,12 +92,73 @@ export function Chat({ initialProvider, directory, onContextUpdate }: ChatProps)
           return true;
         }
 
+        case '/status': {
+          setMessages((m) => [...m, { role: 'system', content: 'Checking provider health...' }]);
+
+          const providers = ['anthropic', 'openai', 'gemini'] as const;
+          const results: string[] = [];
+
+          for (const name of providers) {
+            try {
+              const provider = createProvider(name);
+              const health = await provider.checkHealth();
+              const icon = health.status === 'green' ? '🟢' : health.status === 'yellow' ? '🟡' : '🔴';
+              const active = name === conversation.currentProvider ? ' (active)' : '';
+              results.push(`  ${icon} ${name}${active}: ${health.message}`);
+            } catch {
+              results.push(`  🔴 ${name}: Error checking health`);
+            }
+          }
+
+          setMessages((m) => [
+            ...m,
+            { role: 'system', content: `Provider Status:\n${results.join('\n')}` },
+          ]);
+          return true;
+        }
+
+        case '/model': {
+          setMessages((m) => [
+            ...m,
+            { role: 'system', content: `Current provider: ${conversation.currentProvider}\nUse /switch <provider> to change` },
+          ]);
+          return true;
+        }
+
+        case '/tokens': {
+          const usage = conversation.tokenUsage;
+          const pct = conversation.contextPercentage;
+          setMessages((m) => [
+            ...m,
+            { role: 'system', content: `Token Usage:\n  Input: ${usage.input}\n  Output: ${usage.output}\n  Total: ${usage.total}\n  Context: ${pct}%` },
+          ]);
+          return true;
+        }
+
+        case '/save': {
+          const state = conversation.getState();
+          const filename = `conversation-${Date.now()}.json`;
+          // Note: Would need fs access to actually save
+          setMessages((m) => [
+            ...m,
+            { role: 'system', content: `Conversation state ready to save (${state.messages.length} messages)` },
+          ]);
+          return true;
+        }
+
         case '/exit':
         case '/quit':
           exit();
           return true;
 
         default:
+          if (cmd.startsWith('/')) {
+            setMessages((m) => [
+              ...m,
+              { role: 'system', content: `Unknown command: ${cmd.split(' ')[0]}\nType /help for available commands` },
+            ]);
+            return true;
+          }
           return false;
       }
     },
@@ -167,8 +228,11 @@ export function Chat({ initialProvider, directory, onContextUpdate }: ChatProps)
           <Text color={colors.muted}>
             {`Commands:
   /switch <provider>  - Switch AI (anthropic, openai, gemini)
-  /compact            - Summarize conversation to save context
+  /status             - Check health of all providers (🟢🟡🔴)
   /providers          - List available providers
+  /model              - Show current provider
+  /tokens             - Show token usage and context %
+  /compact            - Summarize conversation to save context
   /clear              - Clear conversation
   /help               - Toggle this help
   /exit               - Exit`}

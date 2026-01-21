@@ -1,5 +1,6 @@
 import type { AIProvider, Message, CompletionResult, StreamChunk, ProviderName } from '../providers/types.js';
 import { createProvider, generateHandoffSummary } from '../providers/index.js';
+import { buildSystemPrompt } from './prompts.js';
 
 export interface ConversationOptions {
   provider: ProviderName;
@@ -180,14 +181,6 @@ export class Conversation {
   }
 
   private getDefaultSystemPrompt(): string {
-    return `You are a helpful AI assistant for software development. You help with:
-- Writing and reviewing code
-- Debugging issues
-- Explaining concepts
-- Planning implementations
-- Answering technical questions
-
-Be concise and practical. When showing code, use markdown code blocks with language tags.
-Current working directory: ${process.cwd()}`;
+    return buildSystemPrompt(this.provider.name);
   }
 }

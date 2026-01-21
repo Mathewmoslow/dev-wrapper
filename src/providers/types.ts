@@ -59,6 +59,16 @@ export interface ToolDefinition {
   };
 }
 
+export type HealthStatus = 'green' | 'yellow' | 'red';
+
+export interface HealthCheckResult {
+  status: HealthStatus;
+  message: string;
+  hasApiKey: boolean;
+  modelAvailable?: boolean;
+  latencyMs?: number;
+}
+
 export interface AIProvider {
   name: ProviderName;
 
@@ -73,6 +83,9 @@ export interface AIProvider {
 
   // Check if provider is configured
   isConfigured(): boolean;
+
+  // Health check with status indicator
+  checkHealth(): Promise<HealthCheckResult>;
 }
 
 // Provider configuration

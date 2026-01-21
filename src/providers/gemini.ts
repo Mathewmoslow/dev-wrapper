@@ -5,6 +5,7 @@ import type {
   StreamChunk,
   Message,
   ToolDefinition,
+  HealthCheckResult,
 } from './types.js';
 
 const DEFAULT_MODEL = 'gemini-2.0-flash';
@@ -99,6 +100,75 @@ export class GeminiProvider implements AIProvider {
   countTokens(text: string): number {
     // Rough approximation
     return Math.ceil(text.length / 4);
+  }
+
+  async checkHealth(): Promise<HealthCheckResult> {
+    if (!this.apiKey) {
+      return {
+        status: 'red',
+        message: 'No API key configured',
+        hasApiKey: false,
+      };
+    }
+
+    if (this.apiKey.length < 20) {
+      return {
+        status: 'yellow',
+        message: 'API key appears invalid (too short)',
+        hasApiKey: true,
+      };
+    }
+
+    try {
+      const start = Date.now();
+      const response = await fetch(this.apiUrl, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({
+          contents: [{ role: 'user', parts: [{ text: 'Hi' }] }],
+          generationConfig: { maxOutputTokens: 10 },
+        }),
+      });
+      const latencyMs = Date.now() - start;
+
+      if (response.ok) {
+        return {
+          status: 'green',
+          message: `Connected (${latencyMs}ms)`,
+          hasApiKey: true,
+          modelAvailable: true,
+          latencyMs,
+        };
+      } else if (response.status === 401 || response.status === 403) {
+        return {
+          status: 'red',
+          message: 'Invalid API key',
+          hasApiKey: true,
+          modelAvailable: false,
+        };
+      } else if (response.status === 429) {
+        return {
+          status: 'yellow',
+          message: 'Rate limited',
+          hasApiKey: true,
+          modelAvailable: true,
+        };
+      } else {
+        return {
+          status: 'yellow',
+          message: `API error: ${response.status}`,
+          hasApiKey: true,
+        };
+      }
+    } catch (err) {
+      return {
+        status: 'red',
+        message: `Connection failed: ${err instanceof Error ? err.message : 'Unknown'}`,
+        hasApiKey: true,
+      };
+    }
   }
 
   private async makeRequest(options: CompletionOptions, stream: boolean): Promise<Response> {
