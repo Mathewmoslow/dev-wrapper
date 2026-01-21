@@ -234,52 +234,88 @@ coverage/
   }
 
   // Step 9: Create GitHub repo and push (gh repo create does it all)
+  let actualRepoUrl = '';
+  let actualRepoName = '';
   try {
     const visibility = makePrivate ? '--private' : '--public';
     const cmd = `gh repo create ${projectName} ${visibility} --source=. --push`;
     console.log('\x1b[90m→ Creating GitHub repository...\x1b[0m');
     execSync(cmd, { cwd: projectPath, stdio: 'inherit' });
-    console.log(`\x1b[32m✓ GitHub repo created: github.com/${githubUser}/${projectName}\x1b[0m`);
+
+    // Wait for GitHub to propagate
+    console.log('\x1b[90m→ Waiting for GitHub to sync...\x1b[0m');
+    await new Promise(resolve => setTimeout(resolve, 3000));
+
+    // Get the ACTUAL repo info from GitHub API (correct casing and URL)
+    try {
+      const repoInfo = execSync('gh repo view --json nameWithOwner,url', {
+        cwd: projectPath,
+        encoding: 'utf-8',
+      });
+      const parsed = JSON.parse(repoInfo);
+      actualRepoName = parsed.nameWithOwner; // e.g., "Mathewmoslow/MyRepo"
+      actualRepoUrl = parsed.url; // e.g., "https://github.com/Mathewmoslow/MyRepo"
+      console.log(`\x1b[32m✓ GitHub repo created: ${actualRepoUrl}\x1b[0m`);
+
+      // Ensure remote is set to HTTPS URL (not SSH)
+      execSync(`git remote set-url origin ${actualRepoUrl}.git`, {
+        cwd: projectPath,
+        stdio: 'ignore',
+      });
+    } catch {
+      actualRepoUrl = `https://github.com/${githubUser}/${projectName}`;
+      actualRepoName = `${githubUser}/${projectName}`;
+      console.log(`\x1b[32m✓ GitHub repo created: ${actualRepoUrl}\x1b[0m`);
+    }
   } catch (err) {
     console.log(`\x1b[31m✗ GitHub repo creation failed: ${err}\x1b[0m`);
     console.log('\x1b[90mYou can create it manually at https://github.com/new\x1b[0m');
   }
 
-  // Step 10: Vercel link (use --yes to skip GitHub connection prompt)
-  if (hasVercel) {
+  // Step 10: Vercel link and connect GitHub
+  if (hasVercel && actualRepoUrl) {
     const doVercel = await confirm('\nLink to Vercel?', true);
     if (doVercel) {
       console.log('\n\x1b[90m→ Creating Vercel project...\x1b[0m');
 
-      // Use --yes to auto-confirm and skip GitHub connection (which often fails with private repos)
       try {
+        // Create Vercel project with --yes to skip prompts
         execSync(`${isWindows ? 'vercel.cmd' : 'vercel'} link --yes`, {
           cwd: projectPath,
           stdio: 'inherit',
         });
         console.log('\x1b[32m✓ Vercel project created\x1b[0m');
 
-        // Try to connect GitHub automatically
+        // Try to connect GitHub using the EXACT URL from GitHub API
         console.log('\x1b[90m→ Connecting GitHub to Vercel...\x1b[0m');
+        console.log(`\x1b[90m  Repo: ${actualRepoName}\x1b[0m`);
         try {
-          const repoUrl = `https://github.com/${githubUser}/${projectName}`;
-          execSync(`${isWindows ? 'vercel.cmd' : 'vercel'} git connect ${repoUrl} --yes`, {
+          execSync(`${isWindows ? 'vercel.cmd' : 'vercel'} git connect ${actualRepoUrl} --yes`, {
             cwd: projectPath,
             stdio: 'inherit',
           });
           console.log('\x1b[32m✓ GitHub connected to Vercel\x1b[0m');
         } catch {
-          console.log('\x1b[33m⚠ Could not auto-connect GitHub to Vercel\x1b[0m');
-          console.log('\x1b[90m  To enable auto-deployments:\x1b[0m');
-          console.log('\x1b[90m  1. Go to: https://github.com/settings/installations\x1b[0m');
-          console.log('\x1b[90m  2. Click Vercel > Configure\x1b[0m');
-          console.log('\x1b[90m  3. Add this repository to Vercel\'s access\x1b[0m');
-          console.log('\x1b[90m  4. Then connect in Vercel dashboard\x1b[0m');
+          console.log('\x1b[33m⚠ Auto-connect failed. Trying alternative method...\x1b[0m');
+
+          // Alternative: try with just the repo name
+          try {
+            execSync(`${isWindows ? 'vercel.cmd' : 'vercel'} git connect ${actualRepoName} --yes`, {
+              cwd: projectPath,
+              stdio: 'inherit',
+            });
+            console.log('\x1b[32m✓ GitHub connected to Vercel\x1b[0m');
+          } catch {
+            console.log('\x1b[33m⚠ Could not auto-connect GitHub to Vercel\x1b[0m');
+            console.log('\x1b[90m  Connect manually in Vercel dashboard: vercel.com\x1b[0m');
+          }
         }
       } catch {
         console.log('\x1b[31m✗ Vercel link failed\x1b[0m');
       }
     }
+  } else if (hasVercel) {
+    console.log('\x1b[33m⚠ Skipping Vercel (GitHub repo not created)\x1b[0m');
   }
 
   console.log('\n\x1b[32m✅ SETUP COMPLETE!\x1b[0m');
