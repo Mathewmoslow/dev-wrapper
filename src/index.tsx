@@ -272,8 +272,8 @@ coverage/
     console.log('\x1b[90mYou can create it manually at https://github.com/new\x1b[0m');
   }
 
-  // Step 10: Vercel link and connect GitHub
-  if (hasVercel && actualRepoUrl) {
+  // Step 10: Vercel link (skip auto git connect - it's unreliable)
+  if (hasVercel) {
     const doVercel = await confirm('\nLink to Vercel?', true);
     if (doVercel) {
       console.log('\n\x1b[90m→ Creating Vercel project...\x1b[0m');
@@ -285,37 +285,12 @@ coverage/
           stdio: 'inherit',
         });
         console.log('\x1b[32m✓ Vercel project created\x1b[0m');
-
-        // Try to connect GitHub using the EXACT URL from GitHub API
-        console.log('\x1b[90m→ Connecting GitHub to Vercel...\x1b[0m');
-        console.log(`\x1b[90m  Repo: ${actualRepoName}\x1b[0m`);
-        try {
-          execSync(`${isWindows ? 'vercel.cmd' : 'vercel'} git connect ${actualRepoUrl} --yes`, {
-            cwd: projectPath,
-            stdio: 'inherit',
-          });
-          console.log('\x1b[32m✓ GitHub connected to Vercel\x1b[0m');
-        } catch {
-          console.log('\x1b[33m⚠ Auto-connect failed. Trying alternative method...\x1b[0m');
-
-          // Alternative: try with just the repo name
-          try {
-            execSync(`${isWindows ? 'vercel.cmd' : 'vercel'} git connect ${actualRepoName} --yes`, {
-              cwd: projectPath,
-              stdio: 'inherit',
-            });
-            console.log('\x1b[32m✓ GitHub connected to Vercel\x1b[0m');
-          } catch {
-            console.log('\x1b[33m⚠ Could not auto-connect GitHub to Vercel\x1b[0m');
-            console.log('\x1b[90m  Connect manually in Vercel dashboard: vercel.com\x1b[0m');
-          }
-        }
+        console.log('\x1b[90m  To enable auto-deploy from GitHub:\x1b[0m');
+        console.log('\x1b[90m  → Go to vercel.com → Project → Settings → Git → Connect\x1b[0m');
       } catch {
         console.log('\x1b[31m✗ Vercel link failed\x1b[0m');
       }
     }
-  } else if (hasVercel) {
-    console.log('\x1b[33m⚠ Skipping Vercel (GitHub repo not created)\x1b[0m');
   }
 
   console.log('\n\x1b[32m✅ SETUP COMPLETE!\x1b[0m');
