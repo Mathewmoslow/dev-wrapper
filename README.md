@@ -20,6 +20,7 @@ cd dev-wrapper
 npm install
 npm run build
 npm link
+vercel --prod
 ```
 
 ## Configuration
