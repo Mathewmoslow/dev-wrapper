@@ -14,6 +14,11 @@ import {
   ListItem,
   ListItemIcon,
   ListItemText,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogContentText,
+  DialogActions,
 } from '@mui/material';
 import {
   Key,
@@ -22,6 +27,7 @@ import {
   Refresh,
   Check,
   Close,
+  DeleteForever,
 } from '@mui/icons-material';
 import { useAppStore } from '../stores/app-store';
 
@@ -41,6 +47,7 @@ export function Settings() {
   } = useAppStore();
 
   const [localDriveFolderId, setLocalDriveFolderId] = useState(driveProjectFolderId);
+  const [clearDialogOpen, setClearDialogOpen] = useState(false);
 
   useEffect(() => {
     if (githubToken) {
@@ -67,6 +74,12 @@ export function Settings() {
     const folderId = extractFolderId(localDriveFolderId);
     setLocalDriveFolderId(folderId); // Update the display to show just the ID
     setDriveFolder(folderId);
+  };
+
+  const handleClearAllData = () => {
+    localStorage.removeItem('app-storage');
+    setClearDialogOpen(false);
+    window.location.reload();
   };
 
   return (
@@ -196,7 +209,7 @@ export function Settings() {
         </Paper>
 
         {/* Info */}
-        <Paper sx={{ p: 3, bgcolor: 'action.hover' }}>
+        <Paper sx={{ p: 3, bgcolor: 'action.hover', mb: 3 }}>
           <Typography variant="subtitle2" sx={{ mb: 1 }}>
             How it works:
           </Typography>
@@ -223,7 +236,48 @@ export function Settings() {
             </ListItem>
           </List>
         </Paper>
+
+        {/* Danger Zone */}
+        <Paper sx={{ p: 3, border: '1px solid', borderColor: 'error.main' }}>
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mb: 2 }}>
+            <DeleteForever color="error" />
+            <Typography variant="h6" color="error">Danger Zone</Typography>
+          </Box>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Clear all local data including OAuth tokens, settings, and chat history.
+            You will need to reconnect your accounts after this.
+          </Typography>
+          <Button
+            variant="outlined"
+            color="error"
+            startIcon={<DeleteForever />}
+            onClick={() => setClearDialogOpen(true)}
+          >
+            Clear All Data
+          </Button>
+        </Paper>
       </Box>
+
+      {/* Confirmation Dialog */}
+      <Dialog open={clearDialogOpen} onClose={() => setClearDialogOpen(false)}>
+        <DialogTitle>Clear All Data?</DialogTitle>
+        <DialogContent>
+          <DialogContentText>
+            This will remove all local data including:
+            <br />• Google Drive and GitHub connections
+            <br />• Saved folder and repository settings
+            <br />• Chat history and project config
+            <br /><br />
+            You will need to reconnect your accounts after this action.
+          </DialogContentText>
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setClearDialogOpen(false)}>Cancel</Button>
+          <Button onClick={handleClearAllData} color="error" variant="contained">
+            Clear Everything
+          </Button>
+        </DialogActions>
+      </Dialog>
     </Box>
   );
 }
