@@ -7,10 +7,10 @@ import { GitHubClient } from '../lib/github';
 
 // Read API keys from Vercel env vars (fallback to empty for localStorage override)
 const ENV_KEYS = {
-  anthropic: import.meta.env.VITE_STUDIORA_ANTHROPIC_KEY || '',
-  openai: import.meta.env.VITE_STUDIORA_OPENAI_KEY || '',
-  gemini: import.meta.env.VITE_STUDIORA_GEMINI_KEY || '',
-  github: import.meta.env.VITE_STUDIORA_GITHUB_TOKEN || '',
+  anthropic: import.meta.env.VITE_ANTHROPIC_API_KEY || '',
+  openai: import.meta.env.VITE_OPENAI_API_KEY || '',
+  gemini: import.meta.env.VITE_GEMINI_API_KEY || '',
+  github: import.meta.env.VITE_GITHUB_TOKEN || '',
 };
 
 interface ProviderHealth {
