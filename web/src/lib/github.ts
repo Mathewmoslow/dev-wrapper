@@ -257,7 +257,7 @@ export class GitHubClient {
 }
 
 // GitHub OAuth helpers
-const GITHUB_CLIENT_ID = import.meta.env.VITE_GITHUB_CLIENT_ID || '';
+const GITHUB_CLIENT_ID = import.meta.env.VITE_STUDIORA_GITHUB_CLIENT_ID || '';
 
 export function getGitHubAuthUrl(redirectUri: string): string {
   const params = new URLSearchParams({
