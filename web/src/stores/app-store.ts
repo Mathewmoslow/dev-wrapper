@@ -5,6 +5,14 @@ import { createProvider } from '../providers';
 import { GoogleDriveClient } from '../lib/google-drive';
 import { GitHubClient } from '../lib/github';
 
+// Read API keys from Vercel env vars (fallback to empty for localStorage override)
+const ENV_KEYS = {
+  anthropic: import.meta.env.VITE_STUDIORA_ANTHROPIC_KEY || '',
+  openai: import.meta.env.VITE_STUDIORA_OPENAI_KEY || '',
+  gemini: import.meta.env.VITE_STUDIORA_GEMINI_KEY || '',
+  github: import.meta.env.VITE_STUDIORA_GITHUB_TOKEN || '',
+};
+
 interface ProviderHealth {
   anthropic: HealthCheckResult | null;
   openai: HealthCheckResult | null;
@@ -82,12 +90,12 @@ interface AppState {
 export const useAppStore = create<AppState>()(
   persist(
     (set, get) => ({
-      // Initial state
-      anthropicKey: '',
-      openaiKey: '',
-      geminiKey: '',
+      // Initial state - prefer env vars, localStorage can override
+      anthropicKey: ENV_KEYS.anthropic,
+      openaiKey: ENV_KEYS.openai,
+      geminiKey: ENV_KEYS.gemini,
       googleAccessToken: '',
-      githubToken: '',
+      githubToken: ENV_KEYS.github,
 
       currentProvider: 'anthropic',
       driveProjectFolderId: '',
