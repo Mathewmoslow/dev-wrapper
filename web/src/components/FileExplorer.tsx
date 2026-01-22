@@ -1,35 +1,54 @@
 import { useEffect, useState } from 'react';
 import {
+  Box,
+  Typography,
+  IconButton,
+  Button,
+  List,
+  ListItem,
+  ListItemButton,
+  ListItemIcon,
+  ListItemText,
+  Dialog,
+  DialogTitle,
+  DialogContent,
+  DialogActions,
+  TextField,
+  Snackbar,
+  Alert,
+} from '@mui/material';
+import {
   Folder,
-  File,
-  RefreshCw,
+  InsertDriveFile,
+  Refresh,
   Save,
-  Plus,
-  ArrowLeft,
-  FileCode,
-  FileText,
-  FileJson,
-} from 'lucide-react';
+  Add,
+  ArrowBack,
+  Code,
+  Description,
+  DataObject,
+  GitHub,
+} from '@mui/icons-material';
 import { useAppStore } from '../stores/app-store';
 import type { DriveFile } from '../lib/types';
 
 function getFileIcon(file: DriveFile) {
   if (file.mimeType === 'application/vnd.google-apps.folder') {
-    return <Folder className="w-4 h-4 text-yellow-400" />;
+    return <Folder sx={{ color: '#fbbf24' }} />;
   }
 
   const name = file.name.toLowerCase();
   if (name.endsWith('.json')) {
-    return <FileJson className="w-4 h-4 text-yellow-300" />;
+    return <DataObject sx={{ color: '#fcd34d' }} />;
   }
   if (name.endsWith('.ts') || name.endsWith('.tsx') || name.endsWith('.js') || name.endsWith('.jsx')) {
-    return <FileCode className="w-4 h-4 text-blue-400" />;
+    return <Code sx={{ color: '#60a5fa' }} />;
   }
   if (name.endsWith('.md') || name.endsWith('.txt')) {
-    return <FileText className="w-4 h-4 text-gray-400" />;
+    return <Description sx={{ color: '#9ca3af' }} />;
   }
 
-  return <File className="w-4 h-4 text-gray-400" />;
+  return <InsertDriveFile sx={{ color: '#9ca3af' }} />;
 }
 
 export function FileExplorer() {
@@ -37,6 +56,14 @@ export function FileExplorer() {
   const [isEditing, setIsEditing] = useState(false);
   const [newFileName, setNewFileName] = useState('');
   const [showNewFileModal, setShowNewFileModal] = useState(false);
+  const [showCommitModal, setShowCommitModal] = useState(false);
+  const [commitMessage, setCommitMessage] = useState('');
+  const [isCommitting, setIsCommitting] = useState(false);
+  const [snackbar, setSnackbar] = useState<{ open: boolean; message: string; severity: 'success' | 'error' }>({
+    open: false,
+    message: '',
+    severity: 'success',
+  });
 
   const {
     googleAccessToken,
@@ -49,6 +76,9 @@ export function FileExplorer() {
     loadFileContent,
     saveFile,
     createFile,
+    githubToken,
+    githubRepo,
+    commitFile,
   } = useAppStore();
 
   useEffect(() => {
@@ -82,146 +112,319 @@ export function FileExplorer() {
     setShowNewFileModal(false);
   };
 
+  const handleCommit = async () => {
+    if (!selectedFile || !commitMessage.trim()) return;
+    setIsCommitting(true);
+    try {
+      // Save file first if there are changes
+      if (isEditing) {
+        await saveFile(editedContent);
+        setIsEditing(false);
+      }
+      // Commit to GitHub
+      await commitFile(selectedFile.name, editedContent, commitMessage);
+      setSnackbar({ open: true, message: `Committed "${selectedFile.name}" to GitHub`, severity: 'success' });
+      setCommitMessage('');
+      setShowCommitModal(false);
+    } catch (error) {
+      setSnackbar({ open: true, message: `Failed to commit: ${error}`, severity: 'error' });
+    } finally {
+      setIsCommitting(false);
+    }
+  };
+
   if (!googleAccessToken) {
     return (
-      <div className="flex flex-col h-full bg-gray-900 items-center justify-center text-gray-400">
-        <Folder className="w-12 h-12 mb-4" />
-        <p>Connect Google Drive to access files</p>
-      </div>
+      <Box
+        sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          height: '100%',
+          bgcolor: 'background.default',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: 'text.secondary',
+        }}
+      >
+        <Folder sx={{ fontSize: 48, mb: 2 }} />
+        <Typography>Connect Google Drive to access files</Typography>
+      </Box>
     );
   }
 
   if (!driveProjectFolderId) {
     return (
-      <div className="flex flex-col h-full bg-gray-900 items-center justify-center text-gray-400">
-        <Folder className="w-12 h-12 mb-4" />
-        <p>Select a project folder in Settings</p>
-      </div>
+      <Box
+        sx={{
+          display: 'flex',
+          flexDirection: 'column',
+          height: '100%',
+          bgcolor: 'background.default',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: 'text.secondary',
+        }}
+      >
+        <Folder sx={{ fontSize: 48, mb: 2 }} />
+        <Typography>Select a project folder in Settings</Typography>
+      </Box>
     );
   }
 
   return (
-    <div className="flex h-full bg-gray-900">
+    <Box sx={{ display: 'flex', height: '100%', bgcolor: 'background.default' }}>
       {/* File list */}
-      <div className="w-64 border-r border-gray-800 flex flex-col">
-        <div className="p-3 border-b border-gray-800 flex items-center justify-between">
-          <h3 className="text-sm font-semibold text-white">Files</h3>
-          <div className="flex gap-1">
-            <button
+      <Box
+        sx={{
+          width: 256,
+          borderRight: '1px solid',
+          borderColor: 'divider',
+          display: 'flex',
+          flexDirection: 'column',
+        }}
+      >
+        <Box
+          sx={{
+            p: 1.5,
+            borderBottom: '1px solid',
+            borderColor: 'divider',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+          }}
+        >
+          <Typography variant="subtitle2" sx={{ fontWeight: 600 }}>
+            Files
+          </Typography>
+          <Box>
+            <IconButton
+              size="small"
               onClick={() => setShowNewFileModal(true)}
-              className="p-1 text-gray-400 hover:text-white hover:bg-gray-800 rounded"
               title="New file"
             >
-              <Plus className="w-4 h-4" />
-            </button>
-            <button
+              <Add fontSize="small" />
+            </IconButton>
+            <IconButton
+              size="small"
               onClick={() => loadDriveFiles()}
-              className="p-1 text-gray-400 hover:text-white hover:bg-gray-800 rounded"
               title="Refresh"
             >
-              <RefreshCw className="w-4 h-4" />
-            </button>
-          </div>
-        </div>
+              <Refresh fontSize="small" />
+            </IconButton>
+          </Box>
+        </Box>
 
         {currentPath.length > 0 && (
-          <button
+          <ListItemButton
             onClick={() => loadDriveFiles(driveProjectFolderId)}
-            className="flex items-center gap-2 p-2 text-gray-400 hover:text-white hover:bg-gray-800 text-sm"
+            sx={{ py: 1 }}
           >
-            <ArrowLeft className="w-4 h-4" />
-            Back to root
-          </button>
+            <ListItemIcon sx={{ minWidth: 32 }}>
+              <ArrowBack fontSize="small" />
+            </ListItemIcon>
+            <ListItemText
+              primary="Back to root"
+              primaryTypographyProps={{ variant: 'body2' }}
+            />
+          </ListItemButton>
         )}
 
-        <div className="flex-1 overflow-y-auto">
+        <List sx={{ flex: 1, overflow: 'auto', p: 0 }}>
           {currentFiles.map((file) => (
-            <button
-              key={file.id}
-              onClick={() => handleFileClick(file)}
-              className={`w-full flex items-center gap-2 p-2 text-left text-sm hover:bg-gray-800 ${
-                selectedFile?.id === file.id ? 'bg-gray-800 text-white' : 'text-gray-300'
-              }`}
-            >
-              {getFileIcon(file)}
-              <span className="truncate">{file.name}</span>
-            </button>
+            <ListItem key={file.id} disablePadding>
+              <ListItemButton
+                onClick={() => handleFileClick(file)}
+                selected={selectedFile?.id === file.id}
+                sx={{ py: 0.75 }}
+              >
+                <ListItemIcon sx={{ minWidth: 32 }}>
+                  {getFileIcon(file)}
+                </ListItemIcon>
+                <ListItemText
+                  primary={file.name}
+                  primaryTypographyProps={{
+                    variant: 'body2',
+                    noWrap: true,
+                  }}
+                />
+              </ListItemButton>
+            </ListItem>
           ))}
 
           {currentFiles.length === 0 && (
-            <p className="p-4 text-gray-500 text-sm">No files in this folder</p>
+            <Box sx={{ p: 2 }}>
+              <Typography variant="body2" color="text.secondary">
+                No files in this folder
+              </Typography>
+            </Box>
           )}
-        </div>
-      </div>
+        </List>
+      </Box>
 
       {/* File content */}
-      <div className="flex-1 flex flex-col">
+      <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
         {selectedFile ? (
           <>
-            <div className="p-3 border-b border-gray-800 flex items-center justify-between">
-              <div className="flex items-center gap-2">
+            <Box
+              sx={{
+                p: 1.5,
+                borderBottom: '1px solid',
+                borderColor: 'divider',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+              }}
+            >
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 1 }}>
                 {getFileIcon(selectedFile)}
-                <span className="text-white text-sm">{selectedFile.name}</span>
-              </div>
-              {isEditing && (
-                <button
-                  onClick={handleSave}
-                  className="flex items-center gap-1 px-3 py-1 bg-blue-600 text-white text-sm rounded hover:bg-blue-700"
-                >
-                  <Save className="w-4 h-4" />
-                  Save
-                </button>
-              )}
-            </div>
-            <div className="flex-1 overflow-auto">
-              <textarea
+                <Typography variant="body2">{selectedFile.name}</Typography>
+              </Box>
+              <Box sx={{ display: 'flex', gap: 1 }}>
+                {isEditing && (
+                  <Button
+                    size="small"
+                    variant="contained"
+                    startIcon={<Save />}
+                    onClick={handleSave}
+                  >
+                    Save
+                  </Button>
+                )}
+                {githubToken && githubRepo && (
+                  <Button
+                    size="small"
+                    variant="outlined"
+                    startIcon={<GitHub />}
+                    onClick={() => setShowCommitModal(true)}
+                  >
+                    Commit
+                  </Button>
+                )}
+              </Box>
+            </Box>
+            <Box sx={{ flex: 1, overflow: 'auto' }}>
+              <TextField
+                multiline
+                fullWidth
                 value={editedContent}
                 onChange={(e) => {
                   setEditedContent(e.target.value);
                   setIsEditing(true);
                 }}
-                className="w-full h-full bg-gray-900 text-gray-100 p-4 font-mono text-sm resize-none focus:outline-none"
-                spellCheck={false}
+                sx={{
+                  height: '100%',
+                  '& .MuiOutlinedInput-root': {
+                    height: '100%',
+                    alignItems: 'flex-start',
+                    borderRadius: 0,
+                    '& fieldset': { border: 'none' },
+                  },
+                  '& .MuiInputBase-input': {
+                    fontFamily: 'monospace',
+                    fontSize: '0.875rem',
+                    p: 2,
+                  },
+                }}
+                InputProps={{
+                  spellCheck: false,
+                }}
               />
-            </div>
+            </Box>
           </>
         ) : (
-          <div className="flex-1 flex items-center justify-center text-gray-500">
-            <p>Select a file to view its contents</p>
-          </div>
+          <Box
+            sx={{
+              flex: 1,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              color: 'text.secondary',
+            }}
+          >
+            <Typography>Select a file to view its contents</Typography>
+          </Box>
         )}
-      </div>
+      </Box>
 
       {/* New file modal */}
-      {showNewFileModal && (
-        <div className="fixed inset-0 bg-black/50 flex items-center justify-center z-50">
-          <div className="bg-gray-800 rounded-lg p-6 w-96">
-            <h3 className="text-lg font-semibold text-white mb-4">Create New File</h3>
-            <input
-              type="text"
-              value={newFileName}
-              onChange={(e) => setNewFileName(e.target.value)}
-              placeholder="filename.ts"
-              className="w-full bg-gray-700 text-white px-3 py-2 rounded border border-gray-600 focus:outline-none focus:border-blue-500 mb-4"
-              autoFocus
-            />
-            <div className="flex justify-end gap-2">
-              <button
-                onClick={() => setShowNewFileModal(false)}
-                className="px-4 py-2 text-gray-400 hover:text-white"
-              >
-                Cancel
-              </button>
-              <button
-                onClick={handleCreateFile}
-                className="px-4 py-2 bg-blue-600 text-white rounded hover:bg-blue-700"
-              >
-                Create
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
-    </div>
+      <Dialog
+        open={showNewFileModal}
+        onClose={() => setShowNewFileModal(false)}
+        maxWidth="xs"
+        fullWidth
+      >
+        <DialogTitle>Create New File</DialogTitle>
+        <DialogContent>
+          <TextField
+            autoFocus
+            fullWidth
+            value={newFileName}
+            onChange={(e) => setNewFileName(e.target.value)}
+            placeholder="filename.ts"
+            size="small"
+            sx={{ mt: 1 }}
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowNewFileModal(false)}>Cancel</Button>
+          <Button onClick={handleCreateFile} variant="contained">
+            Create
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Commit modal */}
+      <Dialog
+        open={showCommitModal}
+        onClose={() => setShowCommitModal(false)}
+        maxWidth="sm"
+        fullWidth
+      >
+        <DialogTitle>Commit to GitHub</DialogTitle>
+        <DialogContent>
+          <Typography variant="body2" color="text.secondary" sx={{ mb: 2 }}>
+            Committing: {selectedFile?.name} to {githubRepo}
+          </Typography>
+          <TextField
+            autoFocus
+            fullWidth
+            multiline
+            rows={3}
+            value={commitMessage}
+            onChange={(e) => setCommitMessage(e.target.value)}
+            placeholder="Enter commit message..."
+            size="small"
+          />
+        </DialogContent>
+        <DialogActions>
+          <Button onClick={() => setShowCommitModal(false)} disabled={isCommitting}>
+            Cancel
+          </Button>
+          <Button
+            onClick={handleCommit}
+            variant="contained"
+            disabled={isCommitting || !commitMessage.trim()}
+          >
+            {isCommitting ? 'Committing...' : 'Commit'}
+          </Button>
+        </DialogActions>
+      </Dialog>
+
+      {/* Snackbar for notifications */}
+      <Snackbar
+        open={snackbar.open}
+        autoHideDuration={4000}
+        onClose={() => setSnackbar({ ...snackbar, open: false })}
+        anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
+      >
+        <Alert
+          onClose={() => setSnackbar({ ...snackbar, open: false })}
+          severity={snackbar.severity}
+          sx={{ width: '100%' }}
+        >
+          {snackbar.message}
+        </Alert>
+      </Snackbar>
+    </Box>
   );
 }

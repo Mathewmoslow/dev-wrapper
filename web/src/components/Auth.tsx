@@ -1,5 +1,17 @@
 import { useEffect } from 'react';
-import { FolderOpen, Github, Check, ExternalLink } from 'lucide-react';
+import {
+  Box,
+  Typography,
+  Button,
+  Paper,
+  Link,
+} from '@mui/material';
+import {
+  FolderOpen,
+  GitHub,
+  Check,
+  OpenInNew,
+} from '@mui/icons-material';
 import { useAppStore } from '../stores/app-store';
 import { getGoogleAuthUrl, parseGoogleAuthResponse } from '../lib/google-drive';
 
@@ -43,127 +55,181 @@ export function Auth() {
   const isReady = googleAccessToken && githubToken;
 
   return (
-    <div className="h-full bg-gray-900 flex items-center justify-center">
-      <div className="max-w-md w-full p-6 space-y-8">
-        <div className="text-center">
-          <h1 className="text-3xl font-bold text-white mb-2">Studiora Web</h1>
-          <p className="text-gray-400">
+    <Box
+      sx={{
+        height: '100%',
+        bgcolor: 'background.default',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+      }}
+    >
+      <Box sx={{ maxWidth: 400, width: '100%', p: 3 }}>
+        <Box sx={{ textAlign: 'center', mb: 4 }}>
+          <Typography variant="h4" sx={{ fontWeight: 700, mb: 1 }}>
+            Studiora Web
+          </Typography>
+          <Typography variant="body1" color="text.secondary">
             AI-powered development from anywhere
-          </p>
-        </div>
+          </Typography>
+        </Box>
 
-        <div className="space-y-4">
+        <Box sx={{ display: 'flex', flexDirection: 'column', gap: 2 }}>
           {/* Google Drive Connection */}
-          <div className="bg-gray-800 rounded-lg p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-gray-700 rounded-lg">
-                  <FolderOpen className="w-6 h-6 text-yellow-400" />
-                </div>
-                <div>
-                  <h3 className="font-medium text-white">Google Drive</h3>
-                  <p className="text-sm text-gray-400">File storage & sync</p>
-                </div>
-              </div>
-              {googleAccessToken && (
-                <Check className="w-5 h-5 text-green-400" />
-              )}
-            </div>
+          <Paper sx={{ p: 3 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Box
+                  sx={{
+                    p: 1,
+                    bgcolor: 'action.hover',
+                    borderRadius: 1,
+                    display: 'flex',
+                  }}
+                >
+                  <FolderOpen sx={{ color: '#fbbf24' }} />
+                </Box>
+                <Box>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>
+                    Google Drive
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    File storage & sync
+                  </Typography>
+                </Box>
+              </Box>
+              {googleAccessToken && <Check sx={{ color: 'success.main' }} />}
+            </Box>
 
             {googleAccessToken ? (
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-green-400">Connected</span>
-                <button
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Typography variant="body2" sx={{ color: 'success.main' }}>
+                  Connected
+                </Typography>
+                <Button
+                  size="small"
                   onClick={() => setGoogleToken('')}
-                  className="text-sm text-gray-400 hover:text-white"
+                  sx={{ textTransform: 'none' }}
                 >
                   Disconnect
-                </button>
-              </div>
+                </Button>
+              </Box>
             ) : (
-              <button
+              <Button
+                fullWidth
+                variant="contained"
                 onClick={handleGoogleAuth}
-                className="w-full py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 text-sm font-medium"
               >
                 Connect Google Drive
-              </button>
+              </Button>
             )}
-          </div>
+          </Paper>
 
           {/* GitHub Connection */}
-          <div className="bg-gray-800 rounded-lg p-4">
-            <div className="flex items-center justify-between mb-3">
-              <div className="flex items-center gap-3">
-                <div className="p-2 bg-gray-700 rounded-lg">
-                  <Github className="w-6 h-6 text-white" />
-                </div>
-                <div>
-                  <h3 className="font-medium text-white">GitHub</h3>
-                  <p className="text-sm text-gray-400">Git operations & repos</p>
-                </div>
-              </div>
-              {githubToken && (
-                <Check className="w-5 h-5 text-green-400" />
-              )}
-            </div>
+          <Paper sx={{ p: 3 }}>
+            <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
+              <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+                <Box
+                  sx={{
+                    p: 1,
+                    bgcolor: 'action.hover',
+                    borderRadius: 1,
+                    display: 'flex',
+                  }}
+                >
+                  <GitHub />
+                </Box>
+                <Box>
+                  <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>
+                    GitHub
+                  </Typography>
+                  <Typography variant="caption" color="text.secondary">
+                    Git operations & repos
+                  </Typography>
+                </Box>
+              </Box>
+              {githubToken && <Check sx={{ color: 'success.main' }} />}
+            </Box>
 
             {githubToken ? (
-              <div className="flex items-center justify-between">
-                <span className="text-sm text-green-400">Connected</span>
-                <button
+              <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
+                <Typography variant="body2" sx={{ color: 'success.main' }}>
+                  Connected
+                </Typography>
+                <Button
+                  size="small"
                   onClick={() => setGithubToken('')}
-                  className="text-sm text-gray-400 hover:text-white"
+                  sx={{ textTransform: 'none' }}
                 >
                   Disconnect
-                </button>
-              </div>
+                </Button>
+              </Box>
             ) : (
               <>
-                <button
+                <Button
+                  fullWidth
+                  variant="outlined"
                   onClick={handleGitHubTokenInput}
-                  className="w-full py-2 bg-gray-700 text-white rounded-lg hover:bg-gray-600 text-sm font-medium mb-2"
+                  sx={{ mb: 1 }}
                 >
                   Enter Personal Access Token
-                </button>
-                <a
-                  href="https://github.com/settings/tokens/new?description=Studiora%20Web&scopes=repo,user"
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="flex items-center justify-center gap-1 text-sm text-gray-400 hover:text-white"
-                >
-                  Create a token <ExternalLink className="w-3 h-3" />
-                </a>
+                </Button>
+                <Box sx={{ textAlign: 'center' }}>
+                  <Link
+                    href="https://github.com/settings/tokens/new?description=Studiora%20Web&scopes=repo,user"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    sx={{
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      gap: 0.5,
+                      fontSize: '0.875rem',
+                    }}
+                  >
+                    Create a token <OpenInNew sx={{ fontSize: 14 }} />
+                  </Link>
+                </Box>
               </>
             )}
-          </div>
-        </div>
+          </Paper>
+        </Box>
 
         {/* Continue Button */}
         {isReady && (
-          <button
+          <Button
+            fullWidth
+            variant="contained"
+            color="success"
+            size="large"
             onClick={() => setView('chat')}
-            className="w-full py-3 bg-green-600 text-white rounded-lg hover:bg-green-700 font-medium"
+            sx={{ mt: 3 }}
           >
             Continue to Chat
-          </button>
+          </Button>
         )}
 
         {/* Info */}
-        <div className="text-center text-sm text-gray-500">
-          <p>Your credentials are stored locally in your browser.</p>
-          <p>Nothing is sent to external servers except the AI providers.</p>
-        </div>
+        <Box sx={{ textAlign: 'center', mt: 3 }}>
+          <Typography variant="caption" color="text.secondary">
+            Your credentials are stored locally in your browser.
+          </Typography>
+          <br />
+          <Typography variant="caption" color="text.secondary">
+            Nothing is sent to external servers except the AI providers.
+          </Typography>
+        </Box>
 
         {/* Skip for now */}
         {!isReady && (
-          <button
+          <Button
+            fullWidth
             onClick={() => setView('settings')}
-            className="w-full py-2 text-gray-400 hover:text-white text-sm"
+            sx={{ mt: 2, textTransform: 'none' }}
           >
             Skip for now (limited features)
-          </button>
+          </Button>
         )}
-      </div>
-    </div>
+      </Box>
+    </Box>
   );
 }

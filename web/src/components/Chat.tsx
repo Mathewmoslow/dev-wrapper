@@ -1,7 +1,32 @@
 import { useState, useRef, useEffect } from 'react';
-import { Send, Loader2, Trash2, RefreshCw } from 'lucide-react';
+import {
+  Box,
+  Typography,
+  TextField,
+  IconButton,
+  Select,
+  MenuItem,
+  FormControl,
+  Paper,
+  CircularProgress,
+  LinearProgress,
+  Tooltip,
+  Chip,
+} from '@mui/material';
+import {
+  Send,
+  Refresh,
+  Delete,
+  Compress,
+  Save,
+} from '@mui/icons-material';
 import { useAppStore } from '../stores/app-store';
-import { getProviderDisplayName } from '../providers';
+
+const providerNames: Record<string, string> = {
+  anthropic: 'Claude (Anthropic)',
+  openai: 'GPT (OpenAI)',
+  gemini: 'Gemini (Google)',
+};
 
 export function Chat() {
   const [input, setInput] = useState('');
@@ -13,10 +38,15 @@ export function Chat() {
     streamingContent,
     currentProvider,
     providerHealth,
+    contextUsage,
+    needsCompaction,
+    projectConfig,
     sendMessage,
     clearMessages,
     setCurrentProvider,
-    checkAllProviders,
+    checkProvidersConfigured,
+    compactConversation,
+    saveConversation,
   } = useAppStore();
 
   useEffect(() => {
@@ -38,129 +68,282 @@ export function Chat() {
   };
 
   const health = providerHealth[currentProvider];
+  const contextPercent = Math.round(contextUsage.percentage * 100);
+
+  // Determine context bar color
+  const getContextColor = () => {
+    if (contextUsage.percentage >= 0.9) return 'error';
+    if (contextUsage.percentage >= 0.75) return 'warning';
+    return 'primary';
+  };
 
   return (
-    <div className="flex flex-col h-full bg-gray-900">
+    <Box sx={{ display: 'flex', flexDirection: 'column', height: '100%', bgcolor: 'background.default' }}>
       {/* Header */}
-      <div className="flex items-center justify-between p-4 border-b border-gray-800">
-        <div className="flex items-center gap-4">
-          <h2 className="text-lg font-semibold text-white">Chat</h2>
-          <select
-            value={currentProvider}
-            onChange={(e) => setCurrentProvider(e.target.value as 'anthropic' | 'openai' | 'gemini')}
-            className="bg-gray-800 text-white px-3 py-1 rounded border border-gray-700 text-sm"
-          >
-            <option value="anthropic">Claude (Anthropic)</option>
-            <option value="openai">GPT (OpenAI)</option>
-            <option value="gemini">Gemini (Google)</option>
-          </select>
-          {health && (
-            <span
-              className={`text-sm ${
-                health.status === 'green'
-                  ? 'text-green-400'
-                  : health.status === 'yellow'
-                  ? 'text-yellow-400'
-                  : 'text-red-400'
-              }`}
-            >
-              {health.status === 'green' ? '●' : health.status === 'yellow' ? '●' : '●'} {health.message}
-            </span>
+      <Box
+        sx={{
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          p: 2,
+          borderBottom: '1px solid',
+          borderColor: 'divider',
+        }}
+      >
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
+          <Typography variant="h6" sx={{ fontWeight: 600 }}>
+            Chat
+          </Typography>
+          {projectConfig && (
+            <Chip
+              label={projectConfig.name}
+              size="small"
+              variant="outlined"
+              sx={{ borderColor: 'primary.main', color: 'primary.main' }}
+            />
           )}
-        </div>
-        <div className="flex items-center gap-2">
-          <button
-            onClick={checkAllProviders}
-            className="p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded"
-            title="Check provider health"
-          >
-            <RefreshCw className="w-4 h-4" />
-          </button>
-          <button
-            onClick={clearMessages}
-            className="p-2 text-gray-400 hover:text-white hover:bg-gray-800 rounded"
-            title="Clear chat"
-          >
-            <Trash2 className="w-4 h-4" />
-          </button>
-        </div>
-      </div>
+          <FormControl size="small" sx={{ minWidth: 160 }}>
+            <Select
+              value={currentProvider}
+              onChange={(e) => setCurrentProvider(e.target.value as 'anthropic' | 'openai' | 'gemini')}
+              sx={{
+                bgcolor: 'background.paper',
+                '& .MuiSelect-select': { py: 0.75, fontSize: '0.875rem' },
+              }}
+            >
+              <MenuItem value="anthropic">Claude</MenuItem>
+              <MenuItem value="openai">GPT-4</MenuItem>
+              <MenuItem value="gemini">Gemini</MenuItem>
+            </Select>
+          </FormControl>
+          {health && (
+            <Box
+              sx={{
+                width: 8,
+                height: 8,
+                borderRadius: '50%',
+                bgcolor: health.status === 'green' ? 'success.main' : health.status === 'yellow' ? 'warning.main' : 'error.main',
+              }}
+              title={health.message}
+            />
+          )}
+        </Box>
+        <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5 }}>
+          {/* Context usage indicator */}
+          <Tooltip title={`Context: ${contextUsage.used.toLocaleString()} / ${contextUsage.max.toLocaleString()} tokens (${contextPercent}%)`}>
+            <Box sx={{ display: 'flex', alignItems: 'center', gap: 1, mr: 1 }}>
+              <Box sx={{ width: 60 }}>
+                <LinearProgress
+                  variant="determinate"
+                  value={Math.min(contextPercent, 100)}
+                  color={getContextColor()}
+                  sx={{ height: 6, borderRadius: 1 }}
+                />
+              </Box>
+              <Typography variant="caption" color="text.secondary">
+                {contextPercent}%
+              </Typography>
+            </Box>
+          </Tooltip>
+
+          {needsCompaction && (
+            <Tooltip title="Context is getting full - click to compact">
+              <IconButton
+                onClick={compactConversation}
+                size="small"
+                color="warning"
+              >
+                <Compress fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          )}
+
+          <Tooltip title="Save conversation">
+            <IconButton
+              onClick={() => saveConversation()}
+              size="small"
+              disabled={messages.length === 0}
+            >
+              <Save fontSize="small" />
+            </IconButton>
+          </Tooltip>
+
+          <Tooltip title="Refresh provider status">
+            <IconButton
+              onClick={checkProvidersConfigured}
+              size="small"
+            >
+              <Refresh fontSize="small" />
+            </IconButton>
+          </Tooltip>
+
+          <Tooltip title="Clear chat">
+            <IconButton
+              onClick={clearMessages}
+              size="small"
+            >
+              <Delete fontSize="small" />
+            </IconButton>
+          </Tooltip>
+        </Box>
+      </Box>
 
       {/* Messages */}
-      <div className="flex-1 overflow-y-auto p-4 space-y-4">
+      <Box sx={{ flex: 1, overflow: 'auto', p: 2 }}>
         {messages.length === 0 && !isStreaming && (
-          <div className="text-center text-gray-500 mt-8">
-            <p className="text-lg">Welcome to Studiora Web</p>
-            <p className="text-sm mt-2">
-              Using {getProviderDisplayName(currentProvider)}
-            </p>
-            <p className="text-sm mt-4">
-              Start a conversation or open a file to get context-aware assistance.
-            </p>
-          </div>
+          <Box sx={{ textAlign: 'center', color: 'text.secondary', mt: 8 }}>
+            <Typography variant="h6" gutterBottom>
+              {projectConfig ? projectConfig.name : 'Welcome to Studiora Web'}
+            </Typography>
+            <Typography variant="body2" sx={{ mb: 2 }}>
+              Using {providerNames[currentProvider]}
+            </Typography>
+            {projectConfig ? (
+              <Typography variant="body2" sx={{ mb: 2, maxWidth: 400, mx: 'auto' }}>
+                {projectConfig.description}
+              </Typography>
+            ) : (
+              <Typography variant="body2">
+                Start a conversation or type <code>/help</code> for commands.
+              </Typography>
+            )}
+            <Box sx={{ mt: 4, display: 'flex', flexWrap: 'wrap', gap: 1, justifyContent: 'center' }}>
+              <Chip label="/help" size="small" onClick={() => setInput('/help')} sx={{ cursor: 'pointer' }} />
+              <Chip label="/new" size="small" onClick={() => setInput('/new')} sx={{ cursor: 'pointer' }} />
+              <Chip label="/switch" size="small" onClick={() => setInput('/switch ')} sx={{ cursor: 'pointer' }} />
+              <Chip label="/context" size="small" onClick={() => setInput('/context')} sx={{ cursor: 'pointer' }} />
+            </Box>
+          </Box>
         )}
 
         {messages.map((message, index) => (
-          <div
+          <Box
             key={index}
-            className={`flex ${message.role === 'user' ? 'justify-end' : 'justify-start'}`}
+            sx={{
+              display: 'flex',
+              justifyContent: message.role === 'user' ? 'flex-end' : 'flex-start',
+              mb: 2,
+            }}
           >
-            <div
-              className={`max-w-[80%] rounded-lg p-3 ${
-                message.role === 'user'
-                  ? 'bg-blue-600 text-white'
-                  : 'bg-gray-800 text-gray-100'
-              }`}
+            <Paper
+              elevation={0}
+              sx={{
+                maxWidth: '80%',
+                p: 2,
+                bgcolor: message.role === 'user' ? 'primary.main' : 'background.paper',
+                borderRadius: 2,
+              }}
             >
-              <pre className="whitespace-pre-wrap font-sans text-sm">{message.content}</pre>
-            </div>
-          </div>
+              <Typography
+                component="pre"
+                sx={{
+                  whiteSpace: 'pre-wrap',
+                  fontFamily: message.content.startsWith('/') ? 'monospace' : 'inherit',
+                  fontSize: '0.875rem',
+                  m: 0,
+                  color: message.role === 'user' ? 'white' : 'text.primary',
+                }}
+              >
+                {message.content}
+              </Typography>
+            </Paper>
+          </Box>
         ))}
 
         {isStreaming && streamingContent && (
-          <div className="flex justify-start">
-            <div className="max-w-[80%] rounded-lg p-3 bg-gray-800 text-gray-100">
-              <pre className="whitespace-pre-wrap font-sans text-sm">{streamingContent}</pre>
-              <span className="inline-block w-2 h-4 bg-gray-400 animate-pulse ml-1" />
-            </div>
-          </div>
+          <Box sx={{ display: 'flex', justifyContent: 'flex-start', mb: 2 }}>
+            <Paper
+              elevation={0}
+              sx={{
+                maxWidth: '80%',
+                p: 2,
+                bgcolor: 'background.paper',
+                borderRadius: 2,
+              }}
+            >
+              <Typography
+                component="pre"
+                sx={{
+                  whiteSpace: 'pre-wrap',
+                  fontFamily: 'inherit',
+                  fontSize: '0.875rem',
+                  m: 0,
+                }}
+              >
+                {streamingContent}
+                <Box
+                  component="span"
+                  sx={{
+                    display: 'inline-block',
+                    width: 8,
+                    height: 16,
+                    bgcolor: 'text.secondary',
+                    ml: 0.5,
+                    animation: 'pulse 1s infinite',
+                    '@keyframes pulse': {
+                      '0%, 100%': { opacity: 1 },
+                      '50%': { opacity: 0.4 },
+                    },
+                  }}
+                />
+              </Typography>
+            </Paper>
+          </Box>
         )}
 
         {isStreaming && !streamingContent && (
-          <div className="flex justify-start">
-            <div className="rounded-lg p-3 bg-gray-800">
-              <Loader2 className="w-5 h-5 text-gray-400 animate-spin" />
-            </div>
-          </div>
+          <Box sx={{ display: 'flex', justifyContent: 'flex-start', mb: 2 }}>
+            <Paper
+              elevation={0}
+              sx={{ p: 2, bgcolor: 'background.paper', borderRadius: 2 }}
+            >
+              <CircularProgress size={20} />
+            </Paper>
+          </Box>
         )}
 
         <div ref={messagesEndRef} />
-      </div>
+      </Box>
 
       {/* Input */}
-      <form onSubmit={handleSubmit} className="p-4 border-t border-gray-800">
-        <div className="flex gap-2">
-          <input
-            type="text"
+      <Box
+        component="form"
+        onSubmit={handleSubmit}
+        sx={{
+          p: 2,
+          borderTop: '1px solid',
+          borderColor: 'divider',
+        }}
+      >
+        <Box sx={{ display: 'flex', gap: 1 }}>
+          <TextField
+            fullWidth
             value={input}
             onChange={(e) => setInput(e.target.value)}
-            placeholder="Type your message..."
+            placeholder="Type a message or /command..."
             disabled={isStreaming}
-            className="flex-1 bg-gray-800 text-white px-4 py-2 rounded-lg border border-gray-700 focus:outline-none focus:border-blue-500 disabled:opacity-50"
+            size="small"
+            sx={{
+              '& .MuiOutlinedInput-root': {
+                bgcolor: 'background.paper',
+                fontFamily: input.startsWith('/') ? 'monospace' : 'inherit',
+              },
+            }}
           />
-          <button
+          <IconButton
             type="submit"
             disabled={isStreaming || !input.trim()}
-            className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 disabled:opacity-50 disabled:cursor-not-allowed"
+            sx={{
+              bgcolor: 'primary.main',
+              color: 'white',
+              '&:hover': { bgcolor: 'primary.dark' },
+              '&.Mui-disabled': { bgcolor: 'action.disabledBackground' },
+            }}
           >
-            {isStreaming ? (
-              <Loader2 className="w-5 h-5 animate-spin" />
-            ) : (
-              <Send className="w-5 h-5" />
-            )}
-          </button>
-        </div>
-      </form>
-    </div>
+            {isStreaming ? <CircularProgress size={20} color="inherit" /> : <Send />}
+          </IconButton>
+        </Box>
+      </Box>
+    </Box>
   );
 }
