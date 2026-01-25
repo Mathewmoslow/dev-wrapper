@@ -28,7 +28,9 @@ import {
   Description,
   DataObject,
   GitHub,
+  PlayArrow,
 } from '@mui/icons-material';
+import { CodePreview } from './CodePreview';
 import { useAppStore } from '../stores/app-store';
 import type { DriveFile } from '../lib/types';
 
@@ -79,6 +81,11 @@ export function FileExplorer() {
     githubToken,
     githubRepo,
     commitFile,
+    previewPanelOpen,
+    openPreviewWithFile,
+    detectPreviewMode,
+    setPreviewFiles,
+    previewState,
   } = useAppStore();
 
   useEffect(() => {
@@ -172,7 +179,7 @@ export function FileExplorer() {
   }
 
   return (
-    <Box sx={{ display: 'flex', height: '100%', bgcolor: 'background.default' }}>
+    <Box sx={{ display: 'flex', height: '100%', bgcolor: 'background.default', overflow: 'hidden' }}>
       {/* File list */}
       <Box
         sx={{
@@ -262,7 +269,7 @@ export function FileExplorer() {
       </Box>
 
       {/* File content */}
-      <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column' }}>
+      <Box sx={{ flex: 1, display: 'flex', flexDirection: 'column', minWidth: 300 }}>
         {selectedFile ? (
           <>
             <Box
@@ -290,6 +297,17 @@ export function FileExplorer() {
                     Save
                   </Button>
                 )}
+                {selectedFile && detectPreviewMode(selectedFile.name) !== 'none' && (
+                  <Button
+                    size="small"
+                    variant={previewPanelOpen ? 'contained' : 'outlined'}
+                    color={previewPanelOpen ? 'secondary' : 'primary'}
+                    startIcon={<PlayArrow />}
+                    onClick={() => openPreviewWithFile(selectedFile.name, editedContent)}
+                  >
+                    Preview
+                  </Button>
+                )}
                 {githubToken && githubRepo && (
                   <Button
                     size="small"
@@ -308,8 +326,13 @@ export function FileExplorer() {
                 fullWidth
                 value={editedContent}
                 onChange={(e) => {
-                  setEditedContent(e.target.value);
+                  const newContent = e.target.value;
+                  setEditedContent(newContent);
                   setIsEditing(true);
+                  // Update preview if open
+                  if (previewPanelOpen && selectedFile) {
+                    setPreviewFiles({ ...previewState.files, [selectedFile.name]: newContent });
+                  }
                 }}
                 sx={{
                   height: '100%',
@@ -345,6 +368,9 @@ export function FileExplorer() {
           </Box>
         )}
       </Box>
+
+      {/* Code Preview Panel */}
+      <CodePreview />
 
       {/* New file modal */}
       <Dialog

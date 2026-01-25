@@ -1,62 +1,68 @@
 import { useEffect } from 'react';
-import { ThemeProvider, createTheme, CssBaseline, Box } from '@mui/material';
+import { ThemeProvider, createTheme, CssBaseline } from '@mui/material';
 import { useAppStore } from './stores/app-store';
-import { Sidebar } from './components/Sidebar';
-import { Chat } from './components/Chat';
-import { FileExplorer } from './components/FileExplorer';
-import { Settings } from './components/Settings';
 import { Auth } from './components/Auth';
-import { ProjectInit } from './components/ProjectInit';
+import { IDE } from './components/IDE';
+import { ErrorBoundary } from './components/ErrorBoundary';
+import { ToastProvider, useToast, setGlobalToast } from './components/ToastProvider';
 
 const darkTheme = createTheme({
   palette: {
     mode: 'dark',
-    primary: {
-      main: '#90caf9',
-    },
-    secondary: {
-      main: '#f48fb1',
-    },
-    background: {
-      default: '#121212',
-      paper: '#1e1e1e',
-    },
+    primary: { main: '#0078d4' },
+    secondary: { main: '#f48fb1' },
+    background: { default: '#1e1e1e', paper: '#252526' },
   },
   typography: {
-    fontFamily: '"Roboto", "Helvetica", "Arial", sans-serif',
+    fontFamily: 'system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif',
   },
 });
 
-function App() {
-  const { view, checkProvidersConfigured, googleAccessToken, githubToken } = useAppStore();
+function AppContent() {
+  const { view, setView, checkProvidersConfigured, googleAccessToken } = useAppStore();
+  const toast = useToast();
+
+  useEffect(() => {
+    setGlobalToast(toast);
+  }, [toast]);
 
   useEffect(() => {
     checkProvidersConfigured();
-  }, []);
+  }, [checkProvidersConfigured]);
 
-  const showAuth = view === 'auth' || (!googleAccessToken && !githubToken);
+  // Auto-redirect to IDE after auth
+  useEffect(() => {
+    if (googleAccessToken && view === 'auth') {
+      setView('workspace');
+    }
+  }, [googleAccessToken, view, setView]);
 
-  if (showAuth) {
+  // Show auth if no Google token
+  if (!googleAccessToken) {
     return (
-      <ThemeProvider theme={darkTheme}>
-        <CssBaseline />
+      <ErrorBoundary>
         <Auth />
-      </ThemeProvider>
+      </ErrorBoundary>
     );
   }
 
+  // Main IDE view
+  return (
+    <ErrorBoundary>
+      <IDE />
+    </ErrorBoundary>
+  );
+}
+
+function App() {
   return (
     <ThemeProvider theme={darkTheme}>
       <CssBaseline />
-      <Box sx={{ display: 'flex', height: '100vh' }}>
-        <Sidebar />
-        <Box component="main" sx={{ flexGrow: 1, overflow: 'hidden' }}>
-          {view === 'chat' && <Chat />}
-          {view === 'files' && <FileExplorer />}
-          {view === 'settings' && <Settings />}
-          {view === 'init' && <ProjectInit />}
-        </Box>
-      </Box>
+      <ErrorBoundary>
+        <ToastProvider>
+          <AppContent />
+        </ToastProvider>
+      </ErrorBoundary>
     </ThemeProvider>
   );
 }

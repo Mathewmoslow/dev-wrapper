@@ -20,7 +20,19 @@
       "Bash(vercel env pull:*)",
       "Bash(vercel env ls:*)",
       "Bash(git push:*)",
-      "Bash(git fetch:*)"
+      "Bash(git fetch:*)",
+      "Bash(git checkout:*)",
+      "Bash(npx tailwindcss init -p)",
+      "Bash(vercel project:*)",
+      "Bash(vercel deploy:*)",
+      "Bash(vercel ls:*)",
+      "Bash(source ~/.bashrc)",
+      "Bash(echo:*)",
+      "Bash(vercel env add:*)",
+      "Bash(npm uninstall:*)",
+      "Bash(vercel --prod:*)",
+      "Bash(timeout 10 npm run dev)",
+      "Bash(wc:*)"
     ]
   }
 }

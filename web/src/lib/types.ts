@@ -126,3 +126,21 @@ export interface ConversationState {
     total: number;
   };
 }
+
+// Code Preview Types
+export type PreviewMode = 'sandpack-react' | 'sandpack-vanilla' | 'pyodide' | 'none';
+
+export interface ConsoleEntry {
+  type: 'log' | 'error' | 'warn' | 'info';
+  content: string;
+  timestamp: number;
+}
+
+export interface PreviewState {
+  mode: PreviewMode;
+  files: Record<string, string>;
+  entryFile: string;
+  consoleOutput: ConsoleEntry[];
+  error: string | null;
+  isRunning: boolean;
+}

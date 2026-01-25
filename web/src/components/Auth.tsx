@@ -52,7 +52,8 @@ export function Auth() {
     }
   };
 
-  const isReady = googleAccessToken && githubToken;
+  // Only Google Drive is required; GitHub is optional
+  const isReady = Boolean(googleAccessToken);
 
   return (
     <Box
@@ -125,8 +126,8 @@ export function Auth() {
             )}
           </Paper>
 
-          {/* GitHub Connection */}
-          <Paper sx={{ p: 3 }}>
+          {/* GitHub Connection (Optional) */}
+          <Paper sx={{ p: 3, opacity: 0.9 }}>
             <Box sx={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', mb: 2 }}>
               <Box sx={{ display: 'flex', alignItems: 'center', gap: 2 }}>
                 <Box
@@ -141,10 +142,10 @@ export function Auth() {
                 </Box>
                 <Box>
                   <Typography variant="subtitle1" sx={{ fontWeight: 500 }}>
-                    GitHub
+                    GitHub <Typography component="span" variant="caption" color="text.secondary">(Optional)</Typography>
                   </Typography>
                   <Typography variant="caption" color="text.secondary">
-                    Git operations & repos
+                    Git commits & PRs
                   </Typography>
                 </Box>
               </Box>
@@ -201,10 +202,10 @@ export function Auth() {
             variant="contained"
             color="success"
             size="large"
-            onClick={() => setView('chat')}
+            onClick={() => setView('workspace')}
             sx={{ mt: 3 }}
           >
-            Continue to Chat
+            Continue to Workspace
           </Button>
         )}
 

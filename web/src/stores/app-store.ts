@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import { persist } from 'zustand/middleware';
-import type { Message, ProviderName, HealthCheckResult, DriveFile, GitHubRepo } from '../lib/types';
+import type { Message, ProviderName, HealthCheckResult, DriveFile, GitHubRepo, PreviewState, PreviewMode, ConsoleEntry } from '../lib/types';
 import { GoogleDriveClient } from '../lib/google-drive';
 import { GitHubClient } from '../lib/github';
 import { StudiorService } from '../lib/studiora-service';
@@ -15,6 +15,20 @@ import {
   generateCompactionPrompt,
   generateSystemPrompt,
 } from '../lib/studiora-config';
+import { getGlobalToast } from '../components/ToastProvider';
+
+// Helper to show toast notifications from store actions
+const showToast = (message: string, severity: 'error' | 'success' | 'warning' | 'info' = 'info') => {
+  const toast = getGlobalToast();
+  if (toast) {
+    switch (severity) {
+      case 'error': toast.showError(message); break;
+      case 'success': toast.showSuccess(message); break;
+      case 'warning': toast.showWarning(message); break;
+      default: toast.showInfo(message);
+    }
+  }
+};
 
 interface ProviderHealth {
   anthropic: HealthCheckResult | null;
@@ -67,14 +81,19 @@ interface AppState {
   commits: Array<{ sha: string; message: string; author: { name: string; date: string } }>;
 
   // UI state
-  view: 'chat' | 'files' | 'settings' | 'auth' | 'init';
+  view: 'chat' | 'files' | 'terminal' | 'workspace' | 'settings' | 'auth' | 'init';
   sidebarOpen: boolean;
+
+  // Code Preview state
+  previewState: PreviewState;
+  previewPanelOpen: boolean;
 
   // Actions
   setGoogleToken: (token: string) => void;
   setGithubToken: (token: string) => void;
   setCurrentProvider: (provider: ProviderName) => void;
   setDriveFolder: (folderId: string) => void;
+  setProjectConfig: (config: ProjectConfig | null) => void;
   setGithubRepo: (repo: string) => void;
 
   addMessage: (message: Message) => void;
@@ -109,8 +128,20 @@ interface AppState {
   loadCommits: () => Promise<void>;
   commitFile: (path: string, content: string, message: string) => Promise<void>;
 
-  setView: (view: 'chat' | 'files' | 'settings' | 'auth' | 'init') => void;
+  setView: (view: 'chat' | 'files' | 'terminal' | 'workspace' | 'settings' | 'auth' | 'init') => void;
   toggleSidebar: () => void;
+
+  // Preview actions
+  setPreviewMode: (mode: PreviewMode) => void;
+  setPreviewFiles: (files: Record<string, string>) => void;
+  setPreviewEntryFile: (file: string) => void;
+  addToConsole: (entry: ConsoleEntry) => void;
+  clearConsole: () => void;
+  setPreviewError: (error: string | null) => void;
+  setPreviewRunning: (running: boolean) => void;
+  togglePreviewPanel: () => void;
+  openPreviewWithFile: (filename: string, content: string) => void;
+  detectPreviewMode: (filename: string) => PreviewMode;
 
   sendMessage: (content: string) => Promise<void>;
   handleSlashCommand: (command: string) => Promise<{ handled: boolean; response?: string }>;
@@ -160,6 +191,17 @@ export const useAppStore = create<AppState>()(
       view: 'auth',
       sidebarOpen: true,
 
+      // Code Preview initial state
+      previewState: {
+        mode: 'none',
+        files: {},
+        entryFile: '',
+        consoleOutput: [],
+        error: null,
+        isRunning: false,
+      },
+      previewPanelOpen: false,
+
       // Actions
       setGoogleToken: (token) => set({ googleAccessToken: token }),
       setGithubToken: (token) => set({ githubToken: token }),
@@ -172,6 +214,7 @@ export const useAppStore = create<AppState>()(
         // Load project config when folder changes
         get().loadProjectConfig();
       },
+      setProjectConfig: (config) => set({ projectConfig: config }),
       setGithubRepo: (repo) => set({ githubRepo: repo }),
 
       addMessage: (message) => {
@@ -278,6 +321,7 @@ export const useAppStore = create<AppState>()(
           get().updateContextUsage();
         } catch (error) {
           console.error('Failed to load project config:', error);
+          showToast('Failed to load project configuration', 'error');
         }
       },
 
@@ -288,8 +332,10 @@ export const useAppStore = create<AppState>()(
         try {
           await service.saveProjectConfig(config);
           set({ projectConfig: config });
+          showToast('Project configuration saved', 'success');
         } catch (error) {
           console.error('Failed to save project config:', error);
+          showToast('Failed to save project configuration', 'error');
         }
       },
 
@@ -300,8 +346,10 @@ export const useAppStore = create<AppState>()(
         try {
           const config = await service.initProject(name, description);
           set({ projectConfig: config, projectInitialized: true });
+          showToast(`Project "${name}" initialized!`, 'success');
         } catch (error) {
           console.error('Failed to init project:', error);
+          showToast('Failed to initialize project', 'error');
         }
       },
 
@@ -333,6 +381,7 @@ export const useAppStore = create<AppState>()(
           }
         } catch (error) {
           console.error('Failed to save conversation:', error);
+          showToast('Failed to save conversation', 'warning');
         }
       },
 
@@ -352,9 +401,11 @@ export const useAppStore = create<AppState>()(
               currentProvider: conversation.provider,
             });
             get().updateContextUsage();
+            showToast('Conversation loaded', 'success');
           }
         } catch (error) {
           console.error('Failed to load conversation:', error);
+          showToast('Failed to load conversation', 'error');
         }
       },
 
@@ -366,6 +417,7 @@ export const useAppStore = create<AppState>()(
           return await service.listConversations();
         } catch (error) {
           console.error('Failed to list conversations:', error);
+          showToast('Failed to list saved conversations', 'error');
           return [];
         }
       },
@@ -424,9 +476,11 @@ export const useAppStore = create<AppState>()(
             needsCompaction: false,
           });
           get().updateContextUsage();
+          showToast('Conversation compacted - history summarized', 'info');
         } catch (error) {
           console.error('Compaction failed:', error);
           set({ isStreaming: false });
+          showToast('Failed to compact conversation', 'error');
         }
       },
 
@@ -583,6 +637,74 @@ export const useAppStore = create<AppState>()(
       setView: (view) => set({ view }),
       toggleSidebar: () => set((state) => ({ sidebarOpen: !state.sidebarOpen })),
 
+      // Preview actions
+      setPreviewMode: (mode) => set((state) => ({
+        previewState: { ...state.previewState, mode },
+      })),
+
+      setPreviewFiles: (files) => set((state) => ({
+        previewState: { ...state.previewState, files },
+      })),
+
+      setPreviewEntryFile: (file) => set((state) => ({
+        previewState: { ...state.previewState, entryFile: file },
+      })),
+
+      addToConsole: (entry) => set((state) => ({
+        previewState: {
+          ...state.previewState,
+          consoleOutput: [...state.previewState.consoleOutput, entry],
+        },
+      })),
+
+      clearConsole: () => set((state) => ({
+        previewState: { ...state.previewState, consoleOutput: [] },
+      })),
+
+      setPreviewError: (error) => set((state) => ({
+        previewState: { ...state.previewState, error },
+      })),
+
+      setPreviewRunning: (running) => set((state) => ({
+        previewState: { ...state.previewState, isRunning: running },
+      })),
+
+      togglePreviewPanel: () => set((state) => ({ previewPanelOpen: !state.previewPanelOpen })),
+
+      detectPreviewMode: (filename: string): PreviewMode => {
+        const ext = filename.split('.').pop()?.toLowerCase();
+        switch (ext) {
+          case 'jsx':
+          case 'tsx':
+            return 'sandpack-react';
+          case 'html':
+          case 'js':
+          case 'css':
+            return 'sandpack-vanilla';
+          case 'py':
+            return 'pyodide';
+          default:
+            return 'none';
+        }
+      },
+
+      openPreviewWithFile: (filename, content) => {
+        const mode = get().detectPreviewMode(filename);
+        if (mode !== 'none') {
+          set({
+            previewState: {
+              mode,
+              files: { [filename]: content },
+              entryFile: filename,
+              consoleOutput: [],
+              error: null,
+              isRunning: false,
+            },
+            previewPanelOpen: true,
+          });
+        }
+      },
+
       sendMessage: async (content) => {
         const state = get();
 
@@ -660,11 +782,21 @@ export const useAppStore = create<AppState>()(
     {
       name: 'studiora-web-storage',
       partialize: (state) => ({
+        // Auth tokens
         googleAccessToken: state.googleAccessToken,
         githubToken: state.githubToken,
+        // Provider selection
         currentProvider: state.currentProvider,
+        // Project configuration
         driveProjectFolderId: state.driveProjectFolderId,
         githubRepo: state.githubRepo,
+        projectConfig: state.projectConfig,
+        // Conversation history (critical for UX)
+        messages: state.messages,
+        latestSummary: state.latestSummary,
+        // UI state
+        sidebarOpen: state.sidebarOpen,
+        view: state.view,
       }),
     }
   )

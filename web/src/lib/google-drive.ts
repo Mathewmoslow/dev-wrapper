@@ -49,6 +49,15 @@ export class GoogleDriveClient {
     return response.files;
   }
 
+  // Search for all folders in Drive (for project listing)
+  async searchFolders(): Promise<DriveFile[]> {
+    const query = `mimeType = 'application/vnd.google-apps.folder' and trashed = false and 'root' in parents`;
+    const response = await this.request<{ files: DriveFile[] }>(
+      `/files?q=${encodeURIComponent(query)}&fields=files(id,name,mimeType,modifiedTime)&orderBy=modifiedTime desc&pageSize=50`
+    );
+    return response.files;
+  }
+
   // Get file content
   async getFileContent(fileId: string): Promise<string> {
     const response = await fetch(
